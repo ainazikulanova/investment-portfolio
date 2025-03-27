@@ -1,24 +1,16 @@
-import { useState } from "react";
+import { usePortfolio } from "../context/portfolio-contex";
 import PortfolioForm from "./portfolio-form";
 import PortfolioTable from "./portfolio-table";
 import PortfolioSummary from "./portfolio-summary";
 
 function Portfolio() {
-  const [assets, setAssets] = useState([]);
-
-  const handleAddAsset = (newAsset) => {
-    setAssets([...assets, newAsset]);
-  };
-
-  const handleDeleteAsset = (id) => {
-    setAssets(assets.filter((asset) => asset.id !== id));
-  };
+  const { assets, addAsset, deleteAsset } = usePortfolio();
 
   const calculatePortfolioReturn = () => {
     if (assets.length === 0) return 0;
     const totalReturn = assets.reduce((sum, asset) => {
       const assetReturn =
-        ((asset.currentPrice - asset.buyPrice) / asset.buyPrice) * 100;
+        ((asset.current_price - asset.buy_price) / asset.buy_price) * 100;
       return sum + assetReturn;
     }, 0);
     return (totalReturn / assets.length).toFixed(2);
@@ -29,8 +21,8 @@ function Portfolio() {
       <h1 className="text-3xl font-bold mb-6 text-center">
         Управление портфелем
       </h1>
-      <PortfolioForm onAddAsset={handleAddAsset} />
-      {assets.length > 0 && (
+      <PortfolioForm onAddAsset={addAsset} />
+      {assets.length > 0 ? (
         <>
           <div className="mb-4 text-center">
             <p className="text-lg">
@@ -39,8 +31,10 @@ function Portfolio() {
             </p>
           </div>
           <PortfolioSummary assets={assets} />
-          <PortfolioTable assets={assets} onDeleteAsset={handleDeleteAsset} />
+          <PortfolioTable assets={assets} onDeleteAsset={deleteAsset} />
         </>
+      ) : (
+        <p className="text-center text-gray-500">Нет активов</p>
       )}
     </div>
   );

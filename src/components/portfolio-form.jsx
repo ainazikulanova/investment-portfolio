@@ -1,12 +1,27 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
 
 function PortfolioForm({ onAddAsset }) {
   const [formData, setFormData] = useState({
     name: "",
-    buyPrice: "",
-    currentPrice: "",
+    buy_price: "",
+    current_price: "",
     quantity: "",
   });
+
+  useEffect(() => {
+    if (formData.name) {
+      axios
+        .get(`http://127.0.0.1:8000/api/price/${formData.name}/`)
+        .then((response) => {
+          setFormData((prev) => ({
+            ...prev,
+            current_price: response.data.price,
+          }));
+        })
+        .catch((error) => console.error("Error fetching price:", error));
+    }
+  }, [formData.name]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -15,13 +30,12 @@ function PortfolioForm({ onAddAsset }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     onAddAsset({
-      id: Date.now(),
       name: formData.name,
-      buyPrice: parseFloat(formData.buyPrice),
-      currentPrice: parseFloat(formData.currentPrice),
+      buy_price: parseFloat(formData.buy_price),
+      current_price: parseFloat(formData.current_price),
       quantity: parseInt(formData.quantity),
     });
-    setFormData({ name: "", buyPrice: "", currentPrice: "", quantity: "" });
+    setFormData({ name: "", buy_price: "", current_price: "", quantity: "" });
   };
 
   return (
@@ -40,18 +54,18 @@ function PortfolioForm({ onAddAsset }) {
       />
       <input
         type="number"
-        name="buyPrice"
+        name="buy_price"
         placeholder="Цена покупки"
-        value={formData.buyPrice}
+        value={formData.buy_price}
         onChange={handleChange}
         required
         className="border border-gray-300 rounded-lg p-2"
       />
       <input
         type="number"
-        name="currentPrice"
+        name="current_price"
         placeholder="Текущая цена"
-        value={formData.currentPrice}
+        value={formData.current_price}
         onChange={handleChange}
         required
         className="border border-gray-300 rounded-lg p-2"
