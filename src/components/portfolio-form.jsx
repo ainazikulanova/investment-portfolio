@@ -15,7 +15,7 @@ function PortfolioForm({ onAddAsset }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     onAddAsset({
-      id: Date.now(), // Временный ID
+      id: Date.now(),
       name: formData.name,
       buyPrice: parseFloat(formData.buyPrice),
       currentPrice: parseFloat(formData.currentPrice),
@@ -25,7 +25,10 @@ function PortfolioForm({ onAddAsset }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-4 mb-6">
+    <form
+      onSubmit={handleSubmit}
+      className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6"
+    >
       <input
         type="text"
         name="name"
@@ -33,7 +36,7 @@ function PortfolioForm({ onAddAsset }) {
         value={formData.name}
         onChange={handleChange}
         required
-        className="border border-gray-300 rounded-lg p-2 flex-1"
+        className="border border-gray-300 rounded-lg p-2"
       />
       <input
         type="number"
@@ -42,7 +45,7 @@ function PortfolioForm({ onAddAsset }) {
         value={formData.buyPrice}
         onChange={handleChange}
         required
-        className="border border-gray-300 rounded-lg p-2 flex-1"
+        className="border border-gray-300 rounded-lg p-2"
       />
       <input
         type="number"
@@ -51,7 +54,7 @@ function PortfolioForm({ onAddAsset }) {
         value={formData.currentPrice}
         onChange={handleChange}
         required
-        className="border border-gray-300 rounded-lg p-2 flex-1"
+        className="border border-gray-300 rounded-lg p-2"
       />
       <input
         type="number"
@@ -60,7 +63,7 @@ function PortfolioForm({ onAddAsset }) {
         value={formData.quantity}
         onChange={handleChange}
         required
-        className="border border-gray-300 rounded-lg p-2 flex-1"
+        className="border border-gray-300 rounded-lg p-2"
       />
       <button
         type="submit"
