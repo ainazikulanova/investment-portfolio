@@ -5,10 +5,11 @@ const PortfolioContext = createContext();
 
 export function PortfolioProvider({ children }) {
   const [assets, setAssets] = useState([]);
+  const API_URL = "https://investment-portfolio-z2zm.onrender.com/api"; // Новый URL бэкенда
 
   useEffect(() => {
     axios
-      .get("http://127.0.0.1:8000/api/assets/", {
+      .get(`${API_URL}/assets/`, {
         headers: {
           "Content-Type": "application/json",
         },
@@ -23,7 +24,7 @@ export function PortfolioProvider({ children }) {
   const addAsset = (newAsset) => {
     console.log("Adding asset:", newAsset);
     axios
-      .post("http://127.0.0.1:8000/api/assets/", newAsset, {
+      .post(`${API_URL}/assets/`, newAsset, {
         headers: {
           "Content-Type": "application/json",
         },
@@ -38,7 +39,7 @@ export function PortfolioProvider({ children }) {
   const deleteAsset = (id) => {
     console.log("Deleting asset:", id);
     axios
-      .delete(`http://127.0.0.1:8000/api/assets/${id}/`, {
+      .delete(`${API_URL}/assets/${id}/`, {
         headers: {
           "Content-Type": "application/json",
         },
