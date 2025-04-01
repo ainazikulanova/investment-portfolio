@@ -1,0 +1,4 @@
+echo django==5.1.7 > requirements.txt
+echo djangorestframework >> requirements.txt
+echo django-cors-headers >> requirements.txt
+echo gunicorn >> requirements.txt
