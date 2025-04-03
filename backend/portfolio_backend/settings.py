@@ -104,7 +104,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
-    "https://ainazikulanova.github.io/investment-portfolio",
+    "https://ainazikulanova.github.io",
 ]
 
 # Static files (CSS, JavaScript, Images)

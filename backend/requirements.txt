@@ -3,3 +3,5 @@ djangorestframework
 django-cors-headers
 gunicorn
 whitenoise
+yfinance
+pyportfolioopt
