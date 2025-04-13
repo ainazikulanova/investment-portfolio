@@ -1,10 +1,24 @@
-import { useState } from "react";
+import { usePortfolio } from "../context/portfolio-context";
 import { Link } from "react-router-dom";
 
 function Dashboard() {
-  const [portfolioValue] = useState(150000); // Пример данных
-  const [portfolioReturn] = useState(8.5);
-  const [portfolioRisk] = useState(12.3);
+  const { assets, optimizationResult } = usePortfolio();
+
+  const portfolioValue = assets.reduce(
+    (sum, asset) => sum + asset.current_price * asset.quantity,
+    0
+  );
+
+  const portfolioReturn =
+    assets.length > 0
+      ? assets.reduce((sum, asset) => {
+          const assetReturn =
+            ((asset.current_price - asset.buy_price) / asset.buy_price) * 100;
+          return sum + assetReturn;
+        }, 0) / assets.length
+      : 0;
+
+  const portfolioRisk = optimizationResult ? optimizationResult.risk : 0;
 
   return (
     <div className="max-w-6xl mx-auto p-6">
@@ -16,11 +30,11 @@ function Dashboard() {
         </div>
         <div className="bg-white p-4 rounded-lg shadow">
           <h2 className="text-lg font-semibold">Доходность</h2>
-          <p className="text-2xl">{portfolioReturn}%</p>
+          <p className="text-2xl">{portfolioReturn.toFixed(2)}%</p>
         </div>
         <div className="bg-white p-4 rounded-lg shadow">
           <h2 className="text-lg font-semibold">Риск</h2>
-          <p className="text-2xl">{portfolioRisk}%</p>
+          <p className="text-2xl">{portfolioRisk.toFixed(2)}%</p>
         </div>
       </div>
       <div className="bg-white p-4 rounded-lg shadow mb-6">

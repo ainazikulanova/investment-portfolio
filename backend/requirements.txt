@@ -5,3 +5,6 @@ gunicorn
 whitenoise
 yfinance
 pyportfolioopt
+numpy
+pandas
+scipy

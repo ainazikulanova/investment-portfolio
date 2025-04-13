@@ -5,13 +5,10 @@ import {
   Link,
   Navigate,
 } from "react-router-dom";
-import { PortfolioProvider } from "./context/portfolio-contex";
+import { PortfolioProvider } from "./context/portfolio-context";
 import Portfolio from "./components/portfolio";
 import Dashboard from "./components/dashboard";
 import PortfolioAnalysis from "./components/portfolio-analysis";
-import PortfolioBuilder from "./components/portfolio-builder";
-import History from "./components/history";
-import Profile from "./components/profile";
 
 function App() {
   return (
@@ -35,21 +32,6 @@ function App() {
                   Анализ
                 </Link>
               </li>
-              <li>
-                <Link to="/builder" className="hover:underline">
-                  Построение
-                </Link>
-              </li>
-              <li>
-                <Link to="/history" className="hover:underline">
-                  История
-                </Link>
-              </li>
-              <li>
-                <Link to="/profile" className="hover:underline">
-                  Профиль
-                </Link>
-              </li>
             </ul>
           </nav>
 
@@ -57,9 +39,6 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/portfolio" element={<Portfolio />} />
             <Route path="/analysis" element={<PortfolioAnalysis />} />
-            <Route path="/builder" element={<PortfolioBuilder />} />
-            <Route path="/history" element={<History />} />
-            <Route path="/profile" element={<Profile />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>

@@ -1,10 +1,10 @@
-import { usePortfolio } from "../context/portfolio-contex";
+import { usePortfolio } from "../context/portfolio-context";
 import PortfolioForm from "./portfolio-form";
 import PortfolioTable from "./portfolio-table";
 import PortfolioSummary from "./portfolio-summary";
 
 function Portfolio() {
-  const { assets, addAsset, deleteAsset } = usePortfolio();
+  const { assets, deleteAsset, optimizationResult } = usePortfolio();
 
   const calculatePortfolioReturn = () => {
     if (assets.length === 0) return 0;
@@ -21,7 +21,7 @@ function Portfolio() {
       <h1 className="text-3xl font-bold mb-6 text-center">
         Управление портфелем
       </h1>
-      <PortfolioForm onAddAsset={addAsset} />
+      <PortfolioForm />
       {assets.length > 0 ? (
         <>
           <div className="mb-4 text-center">
@@ -30,7 +30,10 @@ function Portfolio() {
               <span className="font-bold">{calculatePortfolioReturn()}%</span>
             </p>
           </div>
-          <PortfolioSummary assets={assets} />
+          <PortfolioSummary
+            assets={assets}
+            optimizationResult={optimizationResult}
+          />
           <PortfolioTable assets={assets} onDeleteAsset={deleteAsset} />
         </>
       ) : (
