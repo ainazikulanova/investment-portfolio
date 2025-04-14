@@ -1,10 +1,11 @@
-django==5.1.7
+django
 djangorestframework
 django-cors-headers
 gunicorn
 whitenoise
 yfinance
-pyportfolioopt
+pypfopt
 numpy
 pandas
 scipy
+psutil
