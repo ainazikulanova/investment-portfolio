@@ -47,7 +47,7 @@ function PortfolioForm() {
       quantity: parseInt(formData.quantity),
       ticker: formData.name,
     };
-    addAsset(newAsset); // Теперь используем addAsset напрямую
+    addAsset(newAsset);
     setFormData({ name: "", buy_price: "", current_price: "", quantity: "" });
   };
 
@@ -90,7 +90,7 @@ function PortfolioForm() {
         <input
           type="text"
           name="name"
-          placeholder="Тикер актива (например, AAPL)"
+          placeholder="Тикер актива"
           value={formData.name}
           onChange={handleChange}
           required
@@ -137,7 +137,7 @@ function PortfolioForm() {
       >
         <input
           type="text"
-          placeholder="Тикеры (например, AAPL,TSLA,MSFT)"
+          placeholder="Тикеры"
           value={tickers}
           onChange={(e) => setTickers(e.target.value)}
           required

@@ -1,8 +1,10 @@
+# backend/api/views.py
 import yfinance as yf
 from datetime import datetime, timedelta
 from pypfopt import EfficientFrontier, risk_models, expected_returns
 import pandas as pd
 import numpy as np
+import logging
 from rest_framework import generics
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -10,6 +12,22 @@ from rest_framework import status
 from .models import Asset, HistoricalPrice
 from .serializers import AssetSerializer
 from portfolio_backend.portfolio_optimizer import get_asset_data
+
+# Настройка логирования
+logger = logging.getLogger(__name__)
+
+# Маппинг названий компаний на тикеры
+TICKER_MAPPING = {
+    'apple': 'AAPL',
+    'microsoft': 'MSFT',
+    'amazon': 'AMZN',
+    'google': 'GOOGL',
+    'tesla': 'TSLA',
+    'sberbank': 'SBER.ME',
+    'gazprom': 'GAZP.ME',
+    'lukoil': 'LKOH.ME',
+    'yandex': 'YNDX.ME',
+}
 
 class AssetListCreate(generics.ListCreateAPIView):
     queryset = Asset.objects.all()
@@ -23,20 +41,56 @@ class AssetDetail(generics.RetrieveUpdateDestroyAPIView):
 def get_price(request):
     ticker = request.GET.get('ticker')
     if not ticker:
+        logger.warning("Ticker parameter is missing")
         return Response({'error': 'Ticker parameter is required'}, status=400)
     
+    # Приводим ticker к нижнему регистру для маппинга
+    ticker_lower = ticker.lower()
+    # Если введено название компании, преобразуем в тикер
+    ticker = TICKER_MAPPING.get(ticker_lower, ticker)
+    
+    # Добавляем суффикс .ME для российских тикеров, если не было маппинга
     if '.' not in ticker and ticker.upper() in ['SBER', 'GAZP', 'LKOH', 'YNDX']:
         ticker = f"{ticker}.ME"
 
     try:
+        # Проверяем, есть ли свежие данные в базе
+        asset = Asset.objects.filter(ticker=ticker).first()
+        if asset and asset.historical_prices.filter(date=datetime.now().date()).exists():
+            price = asset.historical_prices.filter(date=datetime.now().date()).first().price
+            logger.info(f"Price for {ticker} retrieved from database: {price}")
+            return Response({'ticker': ticker, 'price': float(price)})
+
+        # Пробуем получить данные через yfinance
         stock = yf.Ticker(ticker)
+        # Сначала пробуем history за 5 дней
         history = stock.history(period='5d')
-        if history.empty:
-            return Response({'error': f'No recent price data available for {ticker}'}, status=400)
+        if not history.empty:
+            price = history['Close'].iloc[-1]
+            logger.info(f"Price for {ticker} retrieved from history: {price}")
+        else:
+            # Если history пустой, пробуем получить цену через stock.info
+            info = stock.info
+            price = info.get('regularMarketPrice') or info.get('regularMarketPreviousClose') or info.get('lastPrice')
+            if price is None:
+                logger.warning(f"No price data available for {ticker}")
+                return Response({'error': f'No price data available for {ticker}'}, status=400)
+            logger.info(f"Price for {ticker} retrieved from info: {price}")
+
+        # Сохраняем цену в базу
+        if not asset:
+            asset = Asset.objects.create(
+                ticker=ticker,
+                name=ticker,
+                buy_price=price,
+                current_price=price,
+                quantity=0
+            )
+        HistoricalPrice.objects.create(asset=asset, date=datetime.now().date(), price=price)
         
-        price = history['Close'].iloc[-1]
         return Response({'ticker': ticker, 'price': float(price)})
     except Exception as e:
+        logger.error(f"Failed to fetch price for {ticker}: {str(e)}")
         return Response({'error': f'Failed to fetch price for {ticker}: {str(e)}'}, status=400)
 
 def fetch_and_cache_prices(tickers, start_date, end_date):
@@ -60,6 +114,7 @@ def fetch_and_cache_prices(tickers, start_date, end_date):
                 )
         return price_data
     except Exception as e:
+        logger.error(f"Error fetching prices: {str(e)}")
         raise Exception(f"Ошибка при загрузке цен: {str(e)}")
 
 @api_view(['POST'])
@@ -176,22 +231,27 @@ def optimize_portfolio(request):
         })
 
     except ValueError as e:
+        logger.error(f"Invalid input in optimize_portfolio: {str(e)}")
         return Response({'error': f'Invalid input: {str(e)}'}, status=400)
     except Exception as e:
+        logger.error(f"Server error in optimize_portfolio: {str(e)}")
         return Response({'error': f'Server error: {str(e)}'}, status=500)
 
 @api_view(['GET'])
 def get_historical_prices(request):
-    ticker = request.get('ticker')
+    ticker = request.GET.get('ticker')
     if not ticker:
+        logger.warning("Ticker parameter is missing in get_historical_prices")
         return Response({'error': 'Ticker parameter is required'}, status=400)
 
     asset = Asset.objects.filter(ticker=ticker).first()
     if not asset:
+        logger.warning(f"Asset not found for ticker: {ticker}")
         return Response({'error': 'Asset not found'}, status=404)
 
     prices = asset.historical_prices.values('date', 'price')
     if not prices:
+        logger.warning(f"No historical data available for ticker: {ticker}")
         return Response({'error': 'No historical data available'}, status=404)
 
     return Response({
