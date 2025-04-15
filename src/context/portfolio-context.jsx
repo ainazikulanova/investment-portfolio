@@ -29,7 +29,13 @@ export function PortfolioProvider({ children }) {
 
   const addAsset = async (newAsset) => {
     try {
-      const response = await axios.post(`${API_URL}/assets/`, newAsset, {
+      const cleanedTicker = newAsset.name.toUpperCase().replace(".ME", "");
+      const normalizedAsset = {
+        ...newAsset,
+        name: cleanedTicker,
+        ticker: cleanedTicker,
+      };
+      const response = await axios.post(`${API_URL}/assets/`, normalizedAsset, {
         headers: { "Content-Type": "application/json" },
       });
       setAssets((prevAssets) => [...prevAssets, response.data]);
@@ -67,8 +73,12 @@ export function PortfolioProvider({ children }) {
     currentPortfolio
   ) => {
     try {
+      const cleanedTickers = tickers.map((ticker) =>
+        ticker.toUpperCase().replace(".ME", "")
+      );
+      console.log("Cleaned tickers for optimization:", cleanedTickers);
       const response = await axios.post(`${API_URL}/optimize/`, {
-        tickers: tickers.join(","),
+        tickers: cleanedTickers.join(","),
         model,
         target_return: targetReturn,
         risk_level: riskLevel,

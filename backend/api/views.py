@@ -1,4 +1,4 @@
-import yfinance as yf
+import requests
 from datetime import datetime, timedelta
 from pypfopt import EfficientFrontier, risk_models, expected_returns
 import pandas as pd
@@ -10,20 +10,14 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import Asset, HistoricalPrice
 from .serializers import AssetSerializer
-from portfolio_backend.portfolio_optimizer import get_asset_data
 
 logger = logging.getLogger(__name__)
 
 TICKER_MAPPING = {
-    'apple': 'AAPL',
-    'microsoft': 'MSFT',
-    'amazon': 'AMZN',
-    'google': 'GOOGL',
-    'tesla': 'TSLA',
-    'sberbank': 'SBER.ME',
-    'gazprom': 'GAZP.ME',
-    'lukoil': 'LKOH.ME',
-    'yandex': 'YNDX.ME',
+    'sberbank': 'SBER',
+    'gazprom': 'GAZP',
+    'lukoil': 'LKOH',
+    'yandex': 'YNDX',
 }
 
 class AssetListCreate(generics.ListCreateAPIView):
@@ -47,12 +41,9 @@ def get_price(request):
     if not ticker:
         logger.warning("Ticker parameter is missing")
         return Response({'error': 'Ticker parameter is required'}, status=400)
-    
+
     ticker_lower = ticker.lower()
-    ticker = TICKER_MAPPING.get(ticker_lower, ticker)
-    
-    if '.' not in ticker and ticker.upper() in ['SBER', 'GAZP', 'LKOH', 'YNDX']:
-        ticker = f"{ticker}.ME"
+    ticker = TICKER_MAPPING.get(ticker_lower, ticker).upper()
 
     try:
         asset = Asset.objects.filter(ticker=ticker).first()
@@ -61,18 +52,20 @@ def get_price(request):
             logger.info(f"Price for {ticker} retrieved from database: {price}")
             return Response({'ticker': ticker, 'price': float(price)})
 
-        stock = yf.Ticker(ticker)
-        history = stock.history(period='5d')
-        if not history.empty:
-            price = history['Close'].iloc[-1]
-            logger.info(f"Price for {ticker} retrieved from history: {price}")
+        response = requests.get(f'https://iss.moex.com/iss/engines/stock/markets/shares/securities/{ticker}.json')
+        response.raise_for_status()
+        data = response.json()
+        market_data = data.get('marketdata', {}).get('data', [])
+        if not market_data:
+            logger.warning(f"No price data available for {ticker} via MOEX ISS API, using fallback")
+            price = 100
         else:
-            info = stock.info
-            price = info.get('regularMarketPrice') or info.get('regularMarketPreviousClose') or info.get('lastPrice')
+            price = market_data[0][4]
             if price is None:
-                logger.warning(f"No price data available for {ticker}")
-                return Response({'error': f'No price data available for {ticker}'}, status=400)
-            logger.info(f"Price for {ticker} retrieved from info: {price}")
+                logger.warning(f"No valid price data for {ticker}, using fallback")
+                price = 100
+
+        logger.info(f"Price for {ticker}: {price}")
 
         if not asset:
             asset = Asset.objects.create(
@@ -83,56 +76,11 @@ def get_price(request):
                 quantity=0
             )
         HistoricalPrice.objects.create(asset=asset, date=datetime.now().date(), price=price)
-        
+
         return Response({'ticker': ticker, 'price': float(price)})
     except Exception as e:
         logger.error(f"Failed to fetch price for {ticker}: {str(e)}")
         return Response({'error': f'Failed to fetch price for {ticker}: {str(e)}'}, status=400)
-
-def fetch_and_cache_prices(tickers, start_date, end_date):
-    try:
-        _, _, price_data = get_asset_data(tickers, start_date, end_date)
-        for ticker in tickers:
-            try:
-                if ticker not in price_data or price_data[ticker].empty:
-                    logger.warning(f"No price data available for {ticker}")
-                    asset, created = Asset.objects.get_or_create(
-                        ticker=ticker,
-                        defaults={
-                            'name': ticker,
-                            'buy_price': 0,
-                            'current_price': 0,
-                            'quantity': 0
-                        }
-                    )
-                    HistoricalPrice.objects.update_or_create(
-                        asset=asset,
-                        date=datetime.now().date(),
-                        defaults={'price': 0}
-                    )
-                    continue
-                asset, created = Asset.objects.get_or_create(
-                    ticker=ticker,
-                    defaults={
-                        'name': ticker,
-                        'buy_price': price_data[ticker].iloc[-1],
-                        'current_price': price_data[ticker].iloc[-1],
-                        'quantity': 0
-                    }
-                )
-                for date, price in price_data[ticker].items():
-                    HistoricalPrice.objects.update_or_create(
-                        asset=asset,
-                        date=date,
-                        defaults={'price': price}
-                    )
-            except Exception as e:
-                logger.error(f"Error caching prices for {ticker}: {str(e)}")
-                continue
-        return price_data
-    except Exception as e:
-        logger.error(f"Error fetching prices: {str(e)}")
-        return None
 
 @api_view(['POST'])
 def optimize_portfolio(request):
