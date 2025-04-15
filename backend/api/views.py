@@ -1,4 +1,3 @@
-# backend/api/views.py
 import yfinance as yf
 from datetime import datetime, timedelta
 from pypfopt import EfficientFrontier, risk_models, expected_returns
@@ -13,10 +12,8 @@ from .models import Asset, HistoricalPrice
 from .serializers import AssetSerializer
 from portfolio_backend.portfolio_optimizer import get_asset_data
 
-# Настройка логирования
 logger = logging.getLogger(__name__)
 
-# Маппинг названий компаний на тикеры
 TICKER_MAPPING = {
     'apple': 'AAPL',
     'microsoft': 'MSFT',
@@ -44,32 +41,25 @@ def get_price(request):
         logger.warning("Ticker parameter is missing")
         return Response({'error': 'Ticker parameter is required'}, status=400)
     
-    # Приводим ticker к нижнему регистру для маппинга
     ticker_lower = ticker.lower()
-    # Если введено название компании, преобразуем в тикер
     ticker = TICKER_MAPPING.get(ticker_lower, ticker)
     
-    # Добавляем суффикс .ME для российских тикеров, если не было маппинга
     if '.' not in ticker and ticker.upper() in ['SBER', 'GAZP', 'LKOH', 'YNDX']:
         ticker = f"{ticker}.ME"
 
     try:
-        # Проверяем, есть ли свежие данные в базе
         asset = Asset.objects.filter(ticker=ticker).first()
         if asset and asset.historical_prices.filter(date=datetime.now().date()).exists():
             price = asset.historical_prices.filter(date=datetime.now().date()).first().price
             logger.info(f"Price for {ticker} retrieved from database: {price}")
             return Response({'ticker': ticker, 'price': float(price)})
 
-        # Пробуем получить данные через yfinance
         stock = yf.Ticker(ticker)
-        # Сначала пробуем history за 5 дней
         history = stock.history(period='5d')
         if not history.empty:
             price = history['Close'].iloc[-1]
             logger.info(f"Price for {ticker} retrieved from history: {price}")
         else:
-            # Если history пустой, пробуем получить цену через stock.info
             info = stock.info
             price = info.get('regularMarketPrice') or info.get('regularMarketPreviousClose') or info.get('lastPrice')
             if price is None:
@@ -77,7 +67,6 @@ def get_price(request):
                 return Response({'error': f'No price data available for {ticker}'}, status=400)
             logger.info(f"Price for {ticker} retrieved from info: {price}")
 
-        # Сохраняем цену в базу
         if not asset:
             asset = Asset.objects.create(
                 ticker=ticker,
@@ -97,21 +86,28 @@ def fetch_and_cache_prices(tickers, start_date, end_date):
     try:
         _, _, price_data = get_asset_data(tickers, start_date, end_date)
         for ticker in tickers:
-            asset, created = Asset.objects.get_or_create(
-                ticker=ticker,
-                defaults={
-                    'name': ticker,
-                    'buy_price': price_data[ticker].iloc[-1],
-                    'current_price': price_data[ticker].iloc[-1],
-                    'quantity': 0
-                }
-            )
-            for date, price in price_data[ticker].items():
-                HistoricalPrice.objects.update_or_create(
-                    asset=asset,
-                    date=date,
-                    defaults={'price': price}
+            try:
+                if ticker not in price_data or price_data[ticker].empty:
+                    logger.warning(f"No price data available for {ticker}")
+                    continue
+                asset, created = Asset.objects.get_or_create(
+                    ticker=ticker,
+                    defaults={
+                        'name': ticker,
+                        'buy_price': price_data[ticker].iloc[-1],
+                        'current_price': price_data[ticker].iloc[-1],
+                        'quantity': 0
+                    }
                 )
+                for date, price in price_data[ticker].items():
+                    HistoricalPrice.objects.update_or_create(
+                        asset=asset,
+                        date=date,
+                        defaults={'price': price}
+                    )
+            except Exception as e:
+                logger.error(f"Error caching prices for {ticker}: {str(e)}")
+                continue
         return price_data
     except Exception as e:
         logger.error(f"Error fetching prices: {str(e)}")
@@ -125,6 +121,10 @@ def optimize_portfolio(request):
         target_return = float(request.data.get("target_return", 0.1))
         risk_level = float(request.data.get("risk_level", 0.02))
         current_portfolio = request.data.get("current_portfolio", [])
+
+        if not tickers or tickers == ['']:
+            logger.error("No tickers provided for optimization")
+            return Response({'error': 'At least one ticker is required'}, status=400)
 
         if model not in ['markowitz', 'sharpe']:
             return Response({'error': 'Invalid model. Use "markowitz" or "sharpe"'}, status=400)
@@ -143,6 +143,7 @@ def optimize_portfolio(request):
         for asset in assets:
             prices = asset.historical_prices.values('date', 'price')
             if not prices:
+                logger.warning(f"No historical prices for {asset.ticker}")
                 continue
             data[asset.ticker] = pd.Series(
                 {p['date']: p['price'] for p in prices},
