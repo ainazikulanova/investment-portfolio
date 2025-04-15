@@ -34,6 +34,13 @@ class AssetDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Asset.objects.all()
     serializer_class = AssetSerializer
 
+    def get_object(self):
+        try:
+            return super().get_object()
+        except Asset.DoesNotExist:
+            logger.error(f"Asset with id {self.kwargs.get('pk')} not found")
+            raise generics.get_object_or_404(Asset, pk=self.kwargs.get('pk'))
+
 @api_view(['GET'])
 def get_price(request):
     ticker = request.GET.get('ticker')
@@ -89,6 +96,20 @@ def fetch_and_cache_prices(tickers, start_date, end_date):
             try:
                 if ticker not in price_data or price_data[ticker].empty:
                     logger.warning(f"No price data available for {ticker}")
+                    asset, created = Asset.objects.get_or_create(
+                        ticker=ticker,
+                        defaults={
+                            'name': ticker,
+                            'buy_price': 0,
+                            'current_price': 0,
+                            'quantity': 0
+                        }
+                    )
+                    HistoricalPrice.objects.update_or_create(
+                        asset=asset,
+                        date=datetime.now().date(),
+                        defaults={'price': 0}
+                    )
                     continue
                 asset, created = Asset.objects.get_or_create(
                     ticker=ticker,
@@ -111,7 +132,7 @@ def fetch_and_cache_prices(tickers, start_date, end_date):
         return price_data
     except Exception as e:
         logger.error(f"Error fetching prices: {str(e)}")
-        raise Exception(f"Ошибка при загрузке цен: {str(e)}")
+        return None
 
 @api_view(['POST'])
 def optimize_portfolio(request):
@@ -133,7 +154,7 @@ def optimize_portfolio(request):
         if len(assets) != len(tickers):
             start_date = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
             end_date = datetime.now().strftime("%Y-%m-%d")
-            fetch_and_cache_prices(tickers, start_date, end_date)
+            price_data = fetch_and_cache_prices(tickers, start_date, end_date)
             assets = Asset.objects.filter(ticker__in=tickers)
 
         if len(assets) < 2:
@@ -145,10 +166,15 @@ def optimize_portfolio(request):
             if not prices:
                 logger.warning(f"No historical prices for {asset.ticker}")
                 continue
-            data[asset.ticker] = pd.Series(
+            price_series = pd.Series(
                 {p['date']: p['price'] for p in prices},
                 name=asset.ticker
             )
+            if len(price_series) < 2:
+                logger.warning(f"Insufficient price data for {asset.ticker}")
+                continue
+            data[asset.ticker] = price_series
+
         df = pd.DataFrame(data)
         if df.empty or len(df.columns) < 2:
             return Response({'error': 'Insufficient historical data'}, status=400)
