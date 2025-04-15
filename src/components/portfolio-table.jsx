@@ -16,7 +16,7 @@ function PortfolioTable({ assets, onDeleteAsset }) {
           {assets.map((asset) => (
             <tr key={asset.id} className="border-b hover:bg-gray-50">
               <td className="p-3">{asset.name}</td>
-              <td className="p-3">{asset.buy_price}</td>{" "}
+              <td className="p-3">{asset.buy_price}</td>
               <td className="p-3">{asset.current_price}</td>
               <td className="p-3">{asset.quantity}</td>
               <td className="p-3">

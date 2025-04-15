@@ -25,12 +25,19 @@ def get_price(request):
     if not ticker:
         return Response({'error': 'Ticker parameter is required'}, status=400)
     
+    if '.' not in ticker and ticker.upper() in ['SBER', 'GAZP', 'LKOH', 'YNDX']:
+        ticker = f"{ticker}.ME"
+
     try:
         stock = yf.Ticker(ticker)
-        price = stock.history(period='1d')['Close'].iloc[-1]
-        return Response({'ticker': ticker, 'price': price})
+        history = stock.history(period='5d')
+        if history.empty:
+            return Response({'error': f'No recent price data available for {ticker}'}, status=400)
+        
+        price = history['Close'].iloc[-1]
+        return Response({'ticker': ticker, 'price': float(price)})
     except Exception as e:
-        return Response({'error': str(e)}, status=400)
+        return Response({'error': f'Failed to fetch price for {ticker}: {str(e)}'}, status=400)
 
 def fetch_and_cache_prices(tickers, start_date, end_date):
     try:

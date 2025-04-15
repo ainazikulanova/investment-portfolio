@@ -1,10 +1,9 @@
-/* eslint-disable react-hooks/rules-of-hooks */
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { usePortfolio } from "../context/portfolio-context";
 
 function PortfolioForm() {
-  const { assets, optimizePortfolio } = usePortfolio();
+  const { assets, addAsset, optimizePortfolio } = usePortfolio(); // Перемещаем сюда
   const [formData, setFormData] = useState({
     name: "",
     buy_price: "",
@@ -48,8 +47,7 @@ function PortfolioForm() {
       quantity: parseInt(formData.quantity),
       ticker: formData.name,
     };
-    const { addAsset } = usePortfolio();
-    addAsset(newAsset);
+    addAsset(newAsset); // Теперь используем addAsset напрямую
     setFormData({ name: "", buy_price: "", current_price: "", quantity: "" });
   };
 
@@ -62,7 +60,6 @@ function PortfolioForm() {
       return;
     }
 
-    // Формируем текущий портфель
     const currentPortfolio = assets.map((asset) => ({
       ticker: asset.ticker,
       quantity: asset.quantity,
