@@ -1,7 +1,15 @@
+// PortfolioContext.jsx
 import { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
 
 const PortfolioContext = createContext();
+
+const TICKER_MAPPING = {
+  sberbank: "SBER",
+  gazprom: "GAZP",
+  lukoil: "LKOH",
+  yandex: "YNDX",
+};
 
 export function PortfolioProvider({ children }) {
   const [assets, setAssets] = useState([]);
@@ -29,12 +37,15 @@ export function PortfolioProvider({ children }) {
 
   const addAsset = async (newAsset) => {
     try {
-      const cleanedTicker = newAsset.name.toUpperCase().replace(".ME", "");
+      const tickerLower = newAsset.name.toLowerCase();
+      const normalizedTicker =
+        TICKER_MAPPING[tickerLower] || tickerLower.toUpperCase();
       const normalizedAsset = {
         ...newAsset,
-        name: cleanedTicker,
-        ticker: cleanedTicker,
+        name: normalizedTicker,
+        ticker: normalizedTicker,
       };
+      console.log("Adding asset with ticker:", normalizedTicker);
       const response = await axios.post(`${API_URL}/assets/`, normalizedAsset, {
         headers: { "Content-Type": "application/json" },
       });
@@ -73,9 +84,10 @@ export function PortfolioProvider({ children }) {
     currentPortfolio
   ) => {
     try {
-      const cleanedTickers = tickers.map((ticker) =>
-        ticker.toUpperCase().replace(".ME", "")
-      );
+      const cleanedTickers = tickers.map((ticker) => {
+        const tickerLower = ticker.toLowerCase();
+        return TICKER_MAPPING[tickerLower] || tickerLower.toUpperCase();
+      });
       console.log("Cleaned tickers for optimization:", cleanedTickers);
       const response = await axios.post(`${API_URL}/optimize/`, {
         tickers: cleanedTickers.join(","),

@@ -43,44 +43,44 @@ def get_price(request):
         return Response({'error': 'Ticker parameter is required'}, status=400)
 
     ticker_lower = ticker.lower()
-    ticker = TICKER_MAPPING.get(ticker_lower, ticker).upper()
+    normalized_ticker = TICKER_MAPPING.get(ticker_lower, ticker_lower.upper())
 
     try:
-        asset = Asset.objects.filter(ticker=ticker).first()
+        asset = Asset.objects.filter(ticker=normalized_ticker).first()
         if asset and asset.historical_prices.filter(date=datetime.now().date()).exists():
             price = asset.historical_prices.filter(date=datetime.now().date()).first().price
-            logger.info(f"Price for {ticker} retrieved from database: {price}")
-            return Response({'ticker': ticker, 'price': float(price)})
+            logger.info(f"Price for {normalized_ticker} retrieved from database: {price}")
+            return Response({'ticker': normalized_ticker, 'price': float(price)})
 
-        response = requests.get(f'https://iss.moex.com/iss/engines/stock/markets/shares/securities/{ticker}.json')
+        response = requests.get(f'https://iss.moex.com/iss/engines/stock/markets/shares/securities/{normalized_ticker}.json')
         response.raise_for_status()
         data = response.json()
         market_data = data.get('marketdata', {}).get('data', [])
         if not market_data:
-            logger.warning(f"No price data available for {ticker} via MOEX ISS API, using fallback")
+            logger.warning(f"No price data available for {normalized_ticker} via MOEX ISS API, using fallback")
             price = 100
         else:
             price = market_data[0][4]
             if price is None:
-                logger.warning(f"No valid price data for {ticker}, using fallback")
+                logger.warning(f"No valid price data for {normalized_ticker}, using fallback")
                 price = 100
 
-        logger.info(f"Price for {ticker}: {price}")
+        logger.info(f"Price for {normalized_ticker}: {price}")
 
         if not asset:
             asset = Asset.objects.create(
-                ticker=ticker,
-                name=ticker,
+                ticker=normalized_ticker,
+                name=normalized_ticker,
                 buy_price=price,
                 current_price=price,
                 quantity=0
             )
         HistoricalPrice.objects.create(asset=asset, date=datetime.now().date(), price=price)
 
-        return Response({'ticker': ticker, 'price': float(price)})
+        return Response({'ticker': normalized_ticker, 'price': float(price)})
     except Exception as e:
-        logger.error(f"Failed to fetch price for {ticker}: {str(e)}")
-        return Response({'error': f'Failed to fetch price for {ticker}: {str(e)}'}, status=400)
+        logger.error(f"Failed to fetch price for {normalized_ticker}: {str(e)}")
+        return Response({'error': f'Failed to fetch price for {normalized_ticker}: {str(e)}'}, status=400)
 
 @api_view(['POST'])
 def optimize_portfolio(request):
