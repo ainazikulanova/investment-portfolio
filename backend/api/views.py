@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import Asset, HistoricalPrice
 from .serializers import AssetSerializer
+from .historical_data import fetch_and_cache_prices
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +71,7 @@ def get_price(request):
     except Exception as e:
         logger.error(f"Failed to fetch price for {normalized_ticker}: {str(e)}")
         return Response({'error': f'Failed to fetch price for {normalized_ticker}: {str(e)}'}, status=400)
-    
+
 @api_view(['POST'])
 def optimize_portfolio(request):
     try:
@@ -87,12 +88,14 @@ def optimize_portfolio(request):
         if model not in ['markowitz', 'sharpe']:
             return Response({'error': 'Invalid model. Use "markowitz" or "sharpe"'}, status=400)
 
-        assets = Asset.objects.filter(ticker__in=tickers)
-        if len(assets) != len(tickers):
+        # Нормализуем тикеры
+        normalized_tickers = [TICKER_MAPPING.get(t.lower(), t.upper().replace('.ME', '')) for t in tickers]
+        assets = Asset.objects.filter(ticker__in=normalized_tickers)
+        if len(assets) != len(set(normalized_tickers)):
             start_date = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
             end_date = datetime.now().strftime("%Y-%m-%d")
-            price_data = fetch_and_cache_prices(tickers, start_date, end_date)
-            assets = Asset.objects.filter(ticker__in=tickers)
+            price_data = fetch_and_cache_prices(normalized_tickers, start_date, end_date)
+            assets = Asset.objects.filter(ticker__in=normalized_tickers)
 
         if len(assets) < 2:
             return Response({'error': 'Need at least 2 assets for optimization'}, status=400)
@@ -108,8 +111,13 @@ def optimize_portfolio(request):
                 name=asset.ticker
             )
             if len(price_series) < 2:
-                logger.warning(f"Insufficient price data for {asset.ticker}")
-                continue
+                logger.warning(f"Insufficient price data for {asset.ticker}, adding fallback")
+                dates = [
+                    (datetime.now() - timedelta(days=2)).date(),
+                    (datetime.now() - timedelta(days=1)).date()
+                ]
+                prices = [asset.current_price * 0.99, asset.current_price]
+                price_series = pd.Series(prices, index=dates, name=asset.ticker)
             data[asset.ticker] = price_series
 
         df = pd.DataFrame(data)
@@ -150,21 +158,17 @@ def optimize_portfolio(request):
         recommendations = []
         total_value = sum(
             item['quantity'] * Asset.objects.get(ticker=item['ticker']).current_price
-            for item in current_portfolio
-        ) if current_portfolio else 0
+            for item in current_portfolio if Asset.objects.filter(ticker=item['ticker']).exists()
+        ) if current_portfolio else 1000
 
-        if total_value == 0:
-            total_value = 1000
-
-        current_holdings = {item['ticker']: item['quantity'] for item in current_portfolio}
-        current_prices = {asset.ticker: asset.current_price for asset in assets}
+        current_holdings = {item['ticker']: item['quantity'] for item in current_portfolio if Asset.objects.filter(ticker=item['ticker']).exists()}
+        current_prices = {asset.ticker: asset.current_price for asset in assets if asset.current_price > 0}
 
         for ticker, weight in cleaned_weights.items():
-            optimal_value = total_value * weight
-            current_price = current_prices.get(ticker, 0)
-            if current_price == 0:
+            if ticker not in current_prices or current_prices[ticker] <= 0:
                 continue
-
+            optimal_value = total_value * weight
+            current_price = current_prices[ticker]
             optimal_quantity = int(optimal_value / current_price)
             current_quantity = current_holdings.get(ticker, 0)
             quantity_diff = optimal_quantity - current_quantity

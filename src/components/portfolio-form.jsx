@@ -27,14 +27,6 @@ function PortfolioForm() {
     const tickerLower = formData.name.toLowerCase();
     const normalizedTicker =
       TICKER_MAPPING[tickerLower] || tickerLower.toUpperCase();
-    const existingAsset = assets.find(
-      (asset) => asset.ticker === normalizedTicker
-    );
-
-    if (existingAsset) {
-      setError("Актив с таким тикером уже существует");
-      return;
-    }
 
     try {
       const priceResponse = await axios.get(

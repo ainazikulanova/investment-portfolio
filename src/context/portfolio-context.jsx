@@ -36,7 +36,7 @@ export function PortfolioProvider({ children }) {
 
   const addAsset = async (newAsset) => {
     try {
-      const tickerLower = newAsset.name.toLowerCase();
+      const tickerLower = newAsset.ticker.toLowerCase();
       const normalizedTicker =
         TICKER_MAPPING[tickerLower] || tickerLower.toUpperCase();
       const existingAsset = assets.find(
@@ -44,26 +44,39 @@ export function PortfolioProvider({ children }) {
       );
 
       if (existingAsset) {
-        console.log(`Asset with ticker ${normalizedTicker} already exists`);
-        setError("Актив с таким тикером уже существует");
-        return;
+        const updatedQuantity =
+          existingAsset.quantity + (newAsset.quantity || 0);
+        const response = await axios.patch(
+          `${API_URL}/assets/${existingAsset.id}/`,
+          {
+            quantity: updatedQuantity,
+            buy_price: newAsset.buy_price || existingAsset.buy_price,
+          },
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+        setAssets(
+          assets.map((asset) =>
+            asset.id === existingAsset.id ? response.data : asset
+          )
+        );
+      } else {
+        const response = await axios.post(
+          `${API_URL}/assets/`,
+          {
+            name: normalizedTicker,
+            ticker: normalizedTicker,
+            buy_price: newAsset.buy_price || 0,
+            current_price: newAsset.current_price || 0,
+            quantity: newAsset.quantity || 0,
+          },
+          {
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+        setAssets((prevAssets) => [...prevAssets, response.data]);
       }
-
-      console.log("Adding asset with ticker:", normalizedTicker);
-      const response = await axios.post(
-        `${API_URL}/assets/`,
-        {
-          name: normalizedTicker,
-          ticker: normalizedTicker,
-          buy_price: newAsset.buy_price || 0,
-          current_price: newAsset.current_price || 0,
-          quantity: newAsset.quantity || 0,
-        },
-        {
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-      setAssets((prevAssets) => [...prevAssets, response.data]);
       setError("");
     } catch (error) {
       console.error("Error adding asset:", error);
