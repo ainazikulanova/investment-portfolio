@@ -66,22 +66,11 @@ def get_price(request):
                 price = 100
 
         logger.info(f"Price for {normalized_ticker}: {price}")
-
-        if not asset:
-            asset = Asset.objects.create(
-                ticker=normalized_ticker,
-                name=normalized_ticker,
-                buy_price=price,
-                current_price=price,
-                quantity=0
-            )
-        HistoricalPrice.objects.create(asset=asset, date=datetime.now().date(), price=price)
-
         return Response({'ticker': normalized_ticker, 'price': float(price)})
     except Exception as e:
         logger.error(f"Failed to fetch price for {normalized_ticker}: {str(e)}")
         return Response({'error': f'Failed to fetch price for {normalized_ticker}: {str(e)}'}, status=400)
-
+    
 @api_view(['POST'])
 def optimize_portfolio(request):
     try:

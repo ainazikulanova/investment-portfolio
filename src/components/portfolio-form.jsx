@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import axios from "axios";
 import { usePortfolio } from "../context/portfolio-context";
 
 function PortfolioForm() {
-  const { assets, addAsset, optimizePortfolio } = usePortfolio(); // Перемещаем сюда
+  const { assets, addAsset, optimizePortfolio } = usePortfolio();
   const [formData, setFormData] = useState({
     name: "",
     buy_price: "",
@@ -16,39 +16,47 @@ function PortfolioForm() {
   const [error, setError] = useState("");
   const BASE_URL = "https://investment-portfolio-z2zm.onrender.com";
 
-  useEffect(() => {
-    if (formData.name) {
-      axios
-        .get(`${BASE_URL}/api/price/?ticker=${formData.name}`)
-        .then((response) => {
-          setFormData((prev) => ({
-            ...prev,
-            current_price: response.data.price,
-          }));
-        })
-        .catch((error) => {
-          console.error("Error fetching price:", error);
-          setError("Не удалось загрузить текущую цену. Введите вручную.");
-        });
-    }
-  }, [formData.name]);
-
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleAddAsset = (e) => {
+  const handleAddAsset = async (e) => {
     e.preventDefault();
     setError("");
-    const newAsset = {
-      name: formData.name,
-      buy_price: parseFloat(formData.buy_price),
-      current_price: parseFloat(formData.current_price),
-      quantity: parseInt(formData.quantity),
-      ticker: formData.name,
-    };
-    addAsset(newAsset);
-    setFormData({ name: "", buy_price: "", current_price: "", quantity: "" });
+
+    const tickerLower = formData.name.toLowerCase();
+    const normalizedTicker =
+      TICKER_MAPPING[tickerLower] || tickerLower.toUpperCase();
+    const existingAsset = assets.find(
+      (asset) => asset.ticker === normalizedTicker
+    );
+
+    if (existingAsset) {
+      setError("Актив с таким тикером уже существует");
+      return;
+    }
+
+    try {
+      const priceResponse = await axios.get(
+        `${BASE_URL}/api/price/?ticker=${normalizedTicker}`
+      );
+      const currentPrice = priceResponse.data.price;
+
+      const newAsset = {
+        name: normalizedTicker,
+        buy_price: parseFloat(formData.buy_price) || 0,
+        current_price: currentPrice,
+        quantity: parseInt(formData.quantity) || 0,
+        ticker: normalizedTicker,
+      };
+      await addAsset(newAsset);
+      setFormData({ name: "", buy_price: "", current_price: "", quantity: "" });
+    } catch (error) {
+      console.error("Error fetching price or adding asset:", error);
+      setError(
+        "Не удалось загрузить цену или добавить актив. Введите цену вручную."
+      );
+    }
   };
 
   const handleOptimize = async (e) => {
@@ -76,6 +84,13 @@ function PortfolioForm() {
     } catch (error) {
       setError(error.response?.data?.error || "Ошибка оптимизации портфеля.");
     }
+  };
+
+  const TICKER_MAPPING = {
+    sberbank: "SBER",
+    gazprom: "GAZP",
+    lukoil: "LKOH",
+    yandex: "YNDX",
   };
 
   return (

@@ -1,4 +1,3 @@
-// PortfolioContext.jsx
 import { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
 
@@ -40,15 +39,30 @@ export function PortfolioProvider({ children }) {
       const tickerLower = newAsset.name.toLowerCase();
       const normalizedTicker =
         TICKER_MAPPING[tickerLower] || tickerLower.toUpperCase();
-      const normalizedAsset = {
-        ...newAsset,
-        name: normalizedTicker,
-        ticker: normalizedTicker,
-      };
+      const existingAsset = assets.find(
+        (asset) => asset.ticker === normalizedTicker
+      );
+
+      if (existingAsset) {
+        console.log(`Asset with ticker ${normalizedTicker} already exists`);
+        setError("Актив с таким тикером уже существует");
+        return;
+      }
+
       console.log("Adding asset with ticker:", normalizedTicker);
-      const response = await axios.post(`${API_URL}/assets/`, normalizedAsset, {
-        headers: { "Content-Type": "application/json" },
-      });
+      const response = await axios.post(
+        `${API_URL}/assets/`,
+        {
+          name: normalizedTicker,
+          ticker: normalizedTicker,
+          buy_price: newAsset.buy_price || 0,
+          current_price: newAsset.current_price || 0,
+          quantity: newAsset.quantity || 0,
+        },
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
       setAssets((prevAssets) => [...prevAssets, response.data]);
       setError("");
     } catch (error) {
