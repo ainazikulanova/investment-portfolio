@@ -1,18 +1,13 @@
-# backend/portfolio_backend/settings.py
 from pathlib import Path
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-p2u3&v3el75^@wdmscaa3ajb3p(gz7rh5*020exbtmz4vdsao)'
 
-# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
 ALLOWED_HOSTS = ['investment-portfolio-z2zm.onrender.com', 'localhost', '127.0.0.1']
 
-# Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -24,8 +19,6 @@ INSTALLED_APPS = [
     'corsheaders',
     'api',
 ]
-
-# Остальные настройки остаются без изменений
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -61,7 +54,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'portfolio_backend.wsgi.application'
 
-# Database
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -69,7 +61,6 @@ DATABASES = {
     }
 }
 
-# Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -85,7 +76,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
@@ -93,8 +83,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': None,
 }
 
-# CORS settings
-CORS_ALLOW_ALL_ORIGINS = True  # Временно для разработки
+CORS_ALLOW_ALL_ORIGINS = True  
 CORS_ALLOW_METHODS = [
     'DELETE',
     'GET',
@@ -115,14 +104,12 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
-# Static files
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
 
-# backend/portfolio_backend/settings.py
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -153,19 +140,17 @@ LOGGING = {
             'level': 'DEBUG',
             'propagate': False,
         },
-        'django.utils.autoreload': {  # Отключаем DEBUG для autoreload
+        'django.utils.autoreload': {  
             'handlers': ['console'],
-            'level': 'INFO',  # Меняем на INFO
+            'level': 'INFO',
             'propagate': False,
         },
     },
 }
 
-# Internationalization
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

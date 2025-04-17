@@ -1,4 +1,3 @@
-# backend/portfolio_backend/models.py
 from django.db import models
 
 class Asset(models.Model):
@@ -13,7 +12,7 @@ class Asset(models.Model):
 
     class Meta:
         indexes = [
-            models.Index(fields=['ticker']),  # Индекс для быстрого поиска по тикеру
+            models.Index(fields=['ticker']),
         ]
 
 class HistoricalPrice(models.Model):
@@ -23,7 +22,7 @@ class HistoricalPrice(models.Model):
 
     class Meta:
         indexes = [
-            models.Index(fields=['asset', 'date']),  # Индекс для быстрого поиска цен
+            models.Index(fields=['asset', 'date']),
             models.Index(fields=['date']),
         ]
-        unique_together = ('asset', 'date')  # Уникальность комбинации asset+date
+        unique_together = ('asset', 'date')
