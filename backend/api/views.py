@@ -185,8 +185,9 @@ def optimize_portfolio(request):
         returns = np.linspace(min(mu), max(mu), 50)
         for ret in returns:
             try:
-                ef.efficient_return(ret)
-                perf = ef.portfolio_performance()
+                ef_new = EfficientFrontier(mu, S)
+                ef_new.efficient_return(ret)
+                perf = ef_new.portfolio_performance()
                 ef_frontier.append({
                     'return': perf[0] * 100,
                     'risk': perf[1] * 100
