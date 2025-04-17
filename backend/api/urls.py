@@ -12,5 +12,5 @@ urlpatterns = [
     path('assets/<int:pk>/', AssetDetail.as_view(), name='asset-detail'),
     path('price/', get_price, name='get-price'),
     path('optimize/', optimize_portfolio, name='optimize-portfolio'),
-    path('prices/', get_historical_prices, name='get-historical-prices'),
+    path('historical-prices/', get_historical_prices, name='get-historical-prices'),
 ]
