@@ -1,7 +1,7 @@
 import requests
 from datetime import datetime, timedelta
 import logging
-from ..models import Asset, HistoricalPrice
+from backend.api.models import Asset, HistoricalPrice
 
 logger = logging.getLogger(__name__)
 
