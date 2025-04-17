@@ -54,9 +54,13 @@ function PortfolioForm() {
   const handleOptimize = async (e) => {
     e.preventDefault();
     setError("");
-    const tickerList = tickers.split(",").map((ticker) => ticker.trim());
+
+    const tickerList = tickers
+      .split(",")
+      .map((ticker) => ticker.trim())
+      .filter((ticker) => ticker !== "");
     if (tickerList.length < 2) {
-      setError("Введите как минимум 2 тикера для оптимизации.");
+      setError("Введите как минимум 2 непустых тикера для оптимизации.");
       return;
     }
 
@@ -64,6 +68,14 @@ function PortfolioForm() {
       ticker: asset.ticker,
       quantity: asset.quantity,
     }));
+
+    console.log("Sending optimization request:", {
+      tickers: tickerList,
+      model,
+      targetReturn,
+      riskLevel: 0.02,
+      currentPortfolio,
+    });
 
     try {
       await optimizePortfolio(
@@ -73,7 +85,9 @@ function PortfolioForm() {
         0.02,
         currentPortfolio
       );
+      setError("");
     } catch (error) {
+      console.error("Optimization failed:", error.response?.data);
       setError(error.response?.data?.error || "Ошибка оптимизации портфеля.");
     }
   };

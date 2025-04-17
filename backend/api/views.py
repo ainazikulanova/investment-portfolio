@@ -76,19 +76,21 @@ def get_price(request):
 def optimize_portfolio(request):
     try:
         tickers = request.data.get("tickers", "").split(",")
+        tickers = [ticker.strip() for ticker in tickers if ticker.strip()]
         model = request.data.get("model", "markowitz").lower()
         target_return = float(request.data.get("target_return", 0.1))
         risk_level = float(request.data.get("risk_level", 0.02))
         current_portfolio = request.data.get("current_portfolio", [])
 
-        if not tickers or tickers == ['']:
-            logger.error("No tickers provided for optimization")
-            return Response({'error': 'At least one ticker is required'}, status=400)
+        logger.info(f"Received optimization request: tickers={tickers}, model={model}, target_return={target_return}, risk_level={risk_level}, current_portfolio={current_portfolio}")
+
+        if len(tickers) < 2:
+            logger.error("Less than 2 valid tickers provided for optimization")
+            return Response({'error': 'At least 2 valid tickers are required'}, status=400)
 
         if model not in ['markowitz', 'sharpe']:
             return Response({'error': 'Invalid model. Use "markowitz" or "sharpe"'}, status=400)
 
-        # Нормализуем тикеры
         normalized_tickers = [TICKER_MAPPING.get(t.lower(), t.upper().replace('.ME', '')) for t in tickers]
         assets = Asset.objects.filter(ticker__in=normalized_tickers)
         if len(assets) != len(set(normalized_tickers)):
