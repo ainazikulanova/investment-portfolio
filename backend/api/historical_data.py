@@ -1,8 +1,7 @@
 import requests
 from datetime import datetime, timedelta
 import logging
-from backend.api.models import Asset, HistoricalPrice
-
+from .models import Asset, HistoricalPrice
 logger = logging.getLogger(__name__)
 
 def fetch_and_cache_prices(tickers, start_date, end_date):

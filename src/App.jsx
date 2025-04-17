@@ -9,6 +9,7 @@ import { PortfolioProvider } from "./context/portfolio-context";
 import Portfolio from "./components/portfolio";
 import Dashboard from "./components/dashboard";
 import PortfolioAnalysis from "./components/portfolio-analysis";
+import Edication from "./components/edication";
 
 function App() {
   return (
@@ -32,6 +33,11 @@ function App() {
                   Анализ
                 </Link>
               </li>
+              <li>
+                <Link to="/edication" className="hover:underline">
+                  Образование
+                </Link>
+              </li>
             </ul>
           </nav>
 
@@ -39,6 +45,7 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/portfolio" element={<Portfolio />} />
             <Route path="/analysis" element={<PortfolioAnalysis />} />
+            <Route path="/edication" element={<Edication />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
