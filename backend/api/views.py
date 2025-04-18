@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import Asset, HistoricalPrice
 from .serializers import AssetSerializer
-from .historical_data import fetch_and_cache_prices
+from .historical_data import fetch_current_price
 
 logger = logging.getLogger(__name__)
 
@@ -47,30 +47,15 @@ def get_price(request):
     normalized_ticker = TICKER_MAPPING.get(ticker_lower, ticker_lower.upper())
 
     try:
-        asset = Asset.objects.filter(ticker=normalized_ticker).first()
-        if asset and asset.historical_prices.filter(date=datetime.now().date()).exists():
-            price = asset.historical_prices.filter(date=datetime.now().date()).first().price
-            logger.info(f"Price for {normalized_ticker} retrieved from database: {price}")
-            return Response({'ticker': normalized_ticker, 'price': float(price)})
-
-        response = requests.get(f'https://iss.moex.com/iss/engines/stock/markets/shares/securities/{normalized_ticker}.json')
-        response.raise_for_status()
-        data = response.json()
-        market_data = data.get('marketdata', {}).get('data', [])
-        if not market_data:
-            logger.warning(f"No price data available for {normalized_ticker} via MOEX ISS API, using fallback")
-            price = 100
-        else:
-            price = market_data[0][4]
-            if price is None:
-                logger.warning(f"No valid price data for {normalized_ticker}, using fallback")
-                price = 100
-
+        price = fetch_current_price(normalized_ticker)
+        if price is None:
+            logger.error(f"No valid price data for {normalized_ticker}")
+            return Response({'error': f'No price data for {normalized_ticker}'}, status=404)
         logger.info(f"Price for {normalized_ticker}: {price}")
         return Response({'ticker': normalized_ticker, 'price': float(price)})
     except Exception as e:
         logger.error(f"Failed to fetch price for {normalized_ticker}: {str(e)}")
-        return Response({'error': f'Failed to fetch price for {normalized_ticker}: {str(e)}'}, status=400)
+        return Response({'error': f'Failed to fetch price for {normalized_ticker}: {str(e)}'}, status=500)
 
 @api_view(['POST'])
 def optimize_portfolio(request):
@@ -96,7 +81,7 @@ def optimize_portfolio(request):
 
         start_date = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
         end_date = datetime.now().strftime("%Y-%m-%d")
-        price_data = fetch_and_cache_prices(normalized_tickers, start_date, end_date)
+        price_data = fetch_current_price(normalized_tickers, start_date, end_date)
         logger.info(f"Price data after fetch: {price_data}")
 
         assets = Asset.objects.filter(ticker__in=normalized_tickers)
