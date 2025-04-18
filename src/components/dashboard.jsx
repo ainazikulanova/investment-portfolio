@@ -37,22 +37,14 @@ function Dashboard() {
           <p className="text-2xl">{portfolioRisk.toFixed(2)}%</p>
         </div>
       </div>
-      <div className="bg-white p-4 rounded-lg shadow mb-6">
-        <h2 className="text-lg font-semibold mb-4">
-          График изменения стоимости
-        </h2>
-        <p className="text-center text-gray-500">
-          [График будет добавлен позже]
-        </p>
-      </div>
       <div className="flex justify-center space-x-4">
         <Link to="/portfolio">
-          <button className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
+          <button className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 cursor-pointer">
             Добавить актив
           </button>
         </Link>
         <Link to="/analysis">
-          <button className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
+          <button className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 cursor-pointer">
             Анализ
           </button>
         </Link>

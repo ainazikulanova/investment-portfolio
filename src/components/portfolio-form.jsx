@@ -105,7 +105,7 @@ function PortfolioForm() {
         Добавить активы и оптимизировать портфель
       </h2>
       <form
-        className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6"
+        className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6"
         onSubmit={handleAddAsset}
       >
         <input
@@ -122,15 +122,6 @@ function PortfolioForm() {
           name="buy_price"
           placeholder="Цена покупки"
           value={formData.buy_price}
-          onChange={handleChange}
-          required
-          className="border border-gray-300 rounded-lg p-2"
-        />
-        <input
-          type="number"
-          name="current_price"
-          placeholder="Текущая цена"
-          value={formData.current_price}
           onChange={handleChange}
           required
           className="border border-gray-300 rounded-lg p-2"
