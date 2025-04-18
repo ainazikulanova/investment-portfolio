@@ -101,7 +101,7 @@ function PortfolioForm() {
     sberbank: "SBER",
     gazprom: "GAZP",
     lukoil: "LKOH",
-    yandex: "YNDX",
+    yandex: "YDEX",
   };
 
   return (
