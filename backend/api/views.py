@@ -19,6 +19,10 @@ TICKER_MAPPING = {
     'gazprom': 'GAZP',
     'lukoil': 'LKOH',
     'yandex': 'YDEX',
+    'rosneft': 'ROSN',
+    'nornickel': 'GMKN',
+    'tatneft': 'TATN',
+    'novatek': 'NVTK',
 }
 
 class AssetListCreate(generics.ListCreateAPIView):

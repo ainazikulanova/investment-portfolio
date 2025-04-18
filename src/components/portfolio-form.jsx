@@ -102,6 +102,10 @@ function PortfolioForm() {
     gazprom: "GAZP",
     lukoil: "LKOH",
     yandex: "YDEX",
+    rosneft: "ROSN",
+    nornickel: "GMKN",
+    tatneft: "TATN",
+    novatek: "NVTK",
   };
 
   return (
@@ -116,7 +120,7 @@ function PortfolioForm() {
         <input
           type="text"
           name="name"
-          placeholder="Тикер актива"
+          placeholder="Название актива"
           value={formData.name}
           onChange={handleChange}
           required
