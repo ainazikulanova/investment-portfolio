@@ -67,7 +67,7 @@ def optimize_portfolio(request):
         risk_level = float(request.data.get("risk_level", 0.02))
         current_portfolio = request.data.get("current_portfolio", [])
 
-        logger.info(f"Received optimization request: tickers={tickers}, model={model}, target_return={target_return}, risk_level={risk_level}, current_portfolio={current_portfolio}")
+        logger.info(f"Received optimization request: tickers={tickers}, model={model}, target_return={target_return}, risk_level={risk_level}")
 
         if len(tickers) < 2:
             logger.error("Less than 2 valid tickers provided for optimization")
@@ -79,11 +79,6 @@ def optimize_portfolio(request):
         normalized_tickers = [TICKER_MAPPING.get(t.lower(), t.upper().replace('.ME', '')) for t in tickers]
         logger.info(f"Normalized tickers: {normalized_tickers}")
 
-        start_date = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
-        end_date = datetime.now().strftime("%Y-%m-%d")
-        price_data = fetch_current_price(normalized_tickers, start_date, end_date)
-        logger.info(f"Price data after fetch: {price_data}")
-
         assets = Asset.objects.filter(ticker__in=normalized_tickers)
         logger.info(f"Found assets: {[asset.ticker for asset in assets]}")
 
@@ -93,7 +88,9 @@ def optimize_portfolio(request):
 
         data = {}
         for asset in assets:
-            prices = asset.historical_prices.values('date', 'price')
+            prices = asset.historical_prices.filter(
+                date__gte=datetime.now().date() - timedelta(days=180)
+            ).values('date', 'price')
             logger.info(f"Historical prices for {asset.ticker}: {list(prices)}")
             if not prices:
                 logger.warning(f"No historical prices for {asset.ticker}, adding fallback")
@@ -167,7 +164,7 @@ def optimize_portfolio(request):
         performance = ef.portfolio_performance(risk_free_rate=risk_level)
 
         ef_frontier = []
-        returns = np.linspace(min(mu), max(mu), 50)
+        returns = np.linspace(min(mu), max(mu), 10)
         for ret in returns:
             try:
                 ef_new = EfficientFrontier(mu, S)
