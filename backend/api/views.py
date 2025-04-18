@@ -99,11 +99,6 @@ def optimize_portfolio(request):
         price_data = fetch_and_cache_prices(normalized_tickers, start_date, end_date)
         logger.info(f"Price data after fetch: {price_data}")
 
-        market_prices = fetch_and_cache_prices(['IMOEX'], start_date, end_date)
-        if not market_prices.get('IMOEX'):
-            logger.error("Failed to fetch market index data for IMOEX")
-            return Response({'error': 'Failed to fetch market index data'}, status=500)
-
         assets = Asset.objects.filter(ticker__in=normalized_tickers)
         logger.info(f"Found assets: {[asset.ticker for asset in assets]}")
 
@@ -200,29 +195,6 @@ def optimize_portfolio(request):
             except ValueError:
                 continue
 
-        # 1. Доходность портфеля
-        weights_series = pd.Series(cleaned_weights)
-        portfolio_returns = (df.pct_change().dropna() * weights_series).sum(axis=1)
-
-        # 2. Доходность рынка (IMOEX)
-        market_df = pd.DataFrame(market_prices['IMOEX'], columns=['IMOEX']).pct_change().dropna()
-
-        # 3. Синхронизируем данные
-        common_dates = portfolio_returns.index.intersection(market_df.index)
-        portfolio_returns = portfolio_returns.loc[common_dates]
-        market_returns = market_df['IMOEX'].loc[common_dates]
-
-        # 4. Расчёт бета
-        covariance = portfolio_returns.cov(market_returns)
-        market_variance = market_returns.var()
-        beta = covariance / market_variance if market_variance != 0 else 0
-
-        # 5. Расчёт альфа
-        portfolio_annual_return = performance[0]
-        market_annual_return = expected_returns.mean_historical_return(pd.DataFrame(market_prices['IMOEX'], columns=['IMOEX']))[0]
-        risk_free_rate = risk_level
-        alpha = portfolio_annual_return - (risk_free_rate + beta * (market_annual_return - risk_free_rate))
-
         recommendations = []
         total_value = sum(
             item['quantity'] * Asset.objects.get(ticker=item['ticker']).current_price
@@ -256,8 +228,6 @@ def optimize_portfolio(request):
             'return': performance[0] * 100,
             'risk': performance[1] * 100,
             'sharpe': performance[2] if model == 'sharpe' else None,
-            'beta': float(beta),  # Добавляем бета
-            'alpha': float(alpha),  # Добавляем альфа
             'frontier': ef_frontier,
             'recommendations': recommendations,
             'explanation': (
