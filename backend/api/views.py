@@ -18,7 +18,7 @@ TICKER_MAPPING = {
     'sberbank': 'SBER',
     'gazprom': 'GAZP',
     'lukoil': 'LKOH',
-    'yandex': 'YNDX',
+    'yandex': 'YDEX',
 }
 
 class AssetListCreate(generics.ListCreateAPIView):

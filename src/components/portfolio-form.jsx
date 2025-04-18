@@ -34,6 +34,11 @@ function PortfolioForm() {
       );
       const currentPrice = priceResponse.data.price;
 
+      if (!currentPrice || isNaN(currentPrice)) {
+        setError(`Не удалось получить текущую цену для ${normalizedTicker}`);
+        return;
+      }
+
       const newAsset = {
         name: normalizedTicker,
         buy_price: parseFloat(formData.buy_price) || 0,
@@ -46,7 +51,7 @@ function PortfolioForm() {
     } catch (error) {
       console.error("Error fetching price or adding asset:", error);
       setError(
-        "Не удалось загрузить цену или добавить актив. Введите цену вручную."
+        `Не удалось загрузить цену для ${normalizedTicker}. Попробуйте позже или введите цену вручную.`
       );
     }
   };
