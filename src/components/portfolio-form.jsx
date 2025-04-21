@@ -178,7 +178,7 @@ function PortfolioForm() {
   };
 
   return (
-    <div className="p-6 mb-[25px] bg-gray-50 rounded-lg shadow-md">
+    <div className="p-6 bg-gray-50 rounded-lg shadow-md">
       <h2 className="text-xl font-semibold mb-6 text-gray-800">
         Добавить активы и оптимизировать портфель
       </h2>

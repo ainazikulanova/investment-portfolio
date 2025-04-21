@@ -1,9 +1,11 @@
 from django.db import models
 
-class Asset (models.Model):
+class Asset(models.Model):
     ticker = models.CharField(max_length=20, unique=True)
     name = models.CharField(max_length=100)
     current_price = models.FloatField(default=0.0)
+    buy_price = models.FloatField(default=0.0)
+    quantity = models.IntegerField(default=0) 
     instrument_type = models.CharField(
         max_length=10,
         choices=[
@@ -26,4 +28,4 @@ class HistoricalPrice(models.Model):
         unique_together = ('asset', 'date')
 
     def __str__(self):
-        return f"{self.asset.ticker} - {self.date}: {self.price}"
+        return f"{self.asset.ticker} - {self.date}"

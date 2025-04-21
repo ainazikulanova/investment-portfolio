@@ -102,6 +102,8 @@ def get_price(request):
                 defaults={
                     'name': normalized_ticker,
                     'current_price': price,
+                    'buy_price': 0.0,
+                    'quantity': 0,
                     'instrument_type': instrument_type
                 }
             )
