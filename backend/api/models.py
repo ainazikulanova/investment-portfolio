@@ -1,28 +1,29 @@
 from django.db import models
 
-class Asset(models.Model):
-    name = models.CharField(max_length=50)
-    buy_price = models.FloatField()
-    current_price = models.FloatField()
-    quantity = models.IntegerField()
-    ticker = models.CharField(max_length=10, default="UNKNOWN")
+class Asset (models.Model):
+    ticker = models.CharField(max_length=20, unique=True)
+    name = models.CharField(max_length=100)
+    current_price = models.FloatField(default=0.0)
+    instrument_type = models.CharField(
+        max_length=10,
+        choices=[
+            ('shares', 'Shares'),
+            ('bonds', 'Bonds'),
+            ('etf', 'ETF'),
+        ],
+        default='shares'
+    )
 
     def __str__(self):
-        return self.name
-
-    class Meta:
-        indexes = [
-            models.Index(fields=['ticker']),
-        ]
+        return self.ticker
 
 class HistoricalPrice(models.Model):
-    asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name='historical_prices')
+    asset = models.ForeignKey(Asset, related_name='historical_prices', on_delete=models.CASCADE)
     date = models.DateField()
     price = models.FloatField()
 
     class Meta:
-        indexes = [
-            models.Index(fields=['asset', 'date']),
-            models.Index(fields=['date']),
-        ]
         unique_together = ('asset', 'date')
+
+    def __str__(self):
+        return f"{self.asset.ticker} - {self.date}: {self.price}"
