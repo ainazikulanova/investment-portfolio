@@ -335,7 +335,7 @@ def optimize_portfolio(request):
             'weights': [float(w) for w in cleaned_weights.values()],
             'expected_return': performance[0] * 100,  # Ожидаемая доходность (на основе исторических данных)
             'actual_return': actual_portfolio_return,  # Реальная доходность
-            'portfolio_details': portfolio_details,    # Детали портфеля
+            'portfolio_details': portfolio_details,
             'risk': performance[1] * 100,
             'sharpe': performance[2] if model == 'sharpe' else None,
             'frontier': ef_frontier,
