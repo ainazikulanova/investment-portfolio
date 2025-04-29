@@ -334,7 +334,7 @@ def optimize_portfolio(request):
             'tickers': list(cleaned_weights.keys()),
             'weights': [float(w) for w in cleaned_weights.values()],
             'expected_return': performance[0] * 100,  # Ожидаемая доходность (на основе исторических данных)
-            'actual_return': actual_portfolio_return,  # Реальная доходность (на основе buy_price)
+            'actual_return': actual_portfolio_return,  # Реальная доходность
             'portfolio_details': portfolio_details,    # Детали портфеля
             'risk': performance[1] * 100,
             'sharpe': performance[2] if model == 'sharpe' else None,
