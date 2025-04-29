@@ -126,7 +126,7 @@ function PortfolioAnalysis() {
           <ul className="space-y-2">
             {optimizationResult.recommendations.map((rec, index) => (
               <li key={index} className="p-2 bg-gray-50 rounded-lg">
-                {rec.action} {rec.quantity} акций {rec.ticker} (на сумму ₽
+                {rec.action} {rec.quantity} активов {rec.ticker} (на сумму ₽
                 {rec.value.toFixed(2)})
               </li>
             ))}

@@ -33,6 +33,26 @@ class AssetListCreate(generics.ListCreateAPIView):
     queryset = Asset.objects.all()
     serializer_class = AssetSerializer
 
+    def create(self, request, *args, **kwargs):
+        ticker = request.data.get('ticker')
+        if not ticker:
+            logger.error("Ticker is missing in request data")
+            return Response({'error': 'Ticker is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            asset = Asset.objects.get(ticker=ticker)
+            serializer = self.get_serializer(asset, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            logger.info(f"Updated asset {ticker} with data: {serializer.data}")
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Asset.DoesNotExist:
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            logger.info(f"Created new asset {ticker} with data: {serializer.data}")
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
 class AssetDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Asset.objects.all()
     serializer_class = AssetSerializer
@@ -161,6 +181,30 @@ def optimize_portfolio(request):
             logger.error(f"Need at least 2 assets for optimization, found: {len(assets)}")
             return Response({'error': 'Need at least 2 assets for optimization'}, status=400)
 
+        # Расчёт реальной доходности портфеля
+        total_value = 0
+        weighted_returns = 0
+        portfolio_details = []
+        for asset in assets:
+            if asset.quantity > 0 and asset.buy_price > 0 and asset.current_price > 0:
+                # Доходность актива
+                asset_return = ((asset.current_price - asset.buy_price) / asset.buy_price) * 100
+                # Стоимость актива в портфеле
+                asset_value = asset.quantity * asset.current_price
+                total_value += asset_value
+                weighted_returns += asset_return * (asset_value / total_value if total_value > 0 else 0)
+                portfolio_details.append({
+                    'ticker': asset.ticker,
+                    'buy_price': asset.buy_price,
+                    'current_price': asset.current_price,
+                    'quantity': asset.quantity,
+                    'return': asset_return,
+                    'value': asset_value,
+                })
+        
+        actual_portfolio_return = weighted_returns if total_value > 0 else 0
+
+        # Сбор исторических данных для ожидаемой доходности
         data = {}
         for asset in assets:
             instrument_type = ticker_types.get(asset.ticker, asset.instrument_type)
@@ -258,7 +302,7 @@ def optimize_portfolio(request):
             except ValueError:
                 continue
 
-        recommendations = []
+        # Пересчитываем total_value для рекомендаций
         total_value = sum(
             item['quantity'] * Asset.objects.get(ticker=item['ticker']).current_price
             for item in current_portfolio if Asset.objects.filter(ticker=item['ticker']).exists()
@@ -267,6 +311,7 @@ def optimize_portfolio(request):
         current_holdings = {item['ticker']: item['quantity'] for item in current_portfolio if Asset.objects.filter(ticker=item['ticker']).exists()}
         current_prices = {asset.ticker: asset.current_price for asset in assets if asset.current_price > 0}
 
+        recommendations = []
         for ticker, weight in cleaned_weights.items():
             if ticker not in current_prices or current_prices[ticker] <= 0:
                 continue
@@ -288,7 +333,9 @@ def optimize_portfolio(request):
         return Response({
             'tickers': list(cleaned_weights.keys()),
             'weights': [float(w) for w in cleaned_weights.values()],
-            'return': performance[0] * 100,
+            'expected_return': performance[0] * 100,  # Ожидаемая доходность (на основе исторических данных)
+            'actual_return': actual_portfolio_return,  # Реальная доходность (на основе buy_price)
+            'portfolio_details': portfolio_details,    # Детали портфеля
             'risk': performance[1] * 100,
             'sharpe': performance[2] if model == 'sharpe' else None,
             'frontier': ef_frontier,
@@ -297,7 +344,8 @@ def optimize_portfolio(request):
                 "Модель Марковица минимизирует риск для заданной доходности. "
                 "Модель Шарпа максимизирует коэффициент Шарпа (доходность/риск). "
                 f"Вы выбрали модель: {model}. "
-                f"Ожидаемая доходность: {target_return*100}%, уровень риска: {risk_level}."
+                f"Ожидаемая доходность: {target_return*100}%, уровень риска: {risk_level}. "
+                f"Реальная доходность портфеля: {actual_portfolio_return:.2f}%."
             )
         })
 

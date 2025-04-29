@@ -183,7 +183,7 @@ function PortfolioSummary({ assets, optimizationResult }) {
               <ul className="space-y-2">
                 {recommendations.map((rec, index) => (
                   <li key={index} className="p-2 bg-gray-50 rounded-lg">
-                    {rec.action} {rec.quantity} акций {rec.ticker} (на сумму ₽
+                    {rec.action} {rec.quantity} активов {rec.ticker} (на сумму ₽
                     {rec.value.toFixed(2)})
                   </li>
                 ))}

@@ -46,6 +46,17 @@ function PortfolioForm() {
     const normalizedTicker =
       TICKER_MAPPING[tickerLower] || tickerLower.toUpperCase();
 
+    const buyPrice = parseFloat(formData.buy_price);
+    const quantity = parseInt(formData.quantity);
+    if (isNaN(buyPrice) || buyPrice <= 0) {
+      setError("Цена покупки должна быть больше 0");
+      return;
+    }
+    if (isNaN(quantity) || quantity <= 0) {
+      setError("Количество должно быть больше 0");
+      return;
+    }
+
     let currentPrice;
     try {
       const priceResponse = await axios.get(
@@ -73,9 +84,9 @@ function PortfolioForm() {
     try {
       const newAsset = {
         name: normalizedTicker,
-        buy_price: parseFloat(formData.buy_price) || 0,
+        buy_price: buyPrice,
         current_price: currentPrice,
-        quantity: parseInt(formData.quantity) || 0,
+        quantity: quantity,
         ticker: normalizedTicker,
         instrument_type: formData.instrument_type,
       };
@@ -104,17 +115,28 @@ function PortfolioForm() {
       TICKER_MAPPING[tickerLower] || tickerLower.toUpperCase();
 
     const currentPrice = parseFloat(formData.current_price);
+    const buyPrice = parseFloat(formData.buy_price);
+    const quantity = parseInt(formData.quantity);
+
     if (isNaN(currentPrice) || currentPrice <= 0) {
-      setError("Введите корректную текущую цену (больше 0)");
+      setError("Текущая цена должна быть больше 0");
+      return;
+    }
+    if (isNaN(buyPrice) || buyPrice <= 0) {
+      setError("Цена покупки должна быть больше 0");
+      return;
+    }
+    if (isNaN(quantity) || quantity <= 0) {
+      setError("Количество должно быть больше 0");
       return;
     }
 
     try {
       const newAsset = {
         name: normalizedTicker,
-        buy_price: parseFloat(formData.buy_price) || 0,
+        buy_price: buyPrice,
         current_price: currentPrice,
-        quantity: parseInt(formData.quantity) || 0,
+        quantity: quantity,
         ticker: normalizedTicker,
         instrument_type: formData.instrument_type,
       };
@@ -144,7 +166,7 @@ function PortfolioForm() {
       .map((ticker) => ticker.trim())
       .filter((ticker) => ticker !== "");
     if (tickerList.length < 2) {
-      setError("Введите как минимум 2 непустых тикера для оптимизации.");
+      setError("Введите как минимум 2 для оптимизации.");
       return;
     }
 
