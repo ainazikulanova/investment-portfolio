@@ -2,14 +2,16 @@ import requests
 from datetime import datetime, timedelta
 import pandas as pd
 import logging
+import numpy as np
 from rest_framework import generics
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from models import Asset, HistoricalPrice
-from serializers import AssetSerializer
-from historical_data import fetch_current_price, fetch_historical_prices
-from optimization_methods import (
+from .models import Asset, HistoricalPrice
+from .serializers import AssetSerializer
+from .historical_data import fetch_current_price, fetch_historical_prices
+from pypfopt import expected_returns, EfficientFrontier, risk_models
+from .optimization_methods import (
     optimize_markowitz,
     optimize_sharpe,
     optimize_sortino,
@@ -151,7 +153,7 @@ def optimize_portfolio(request):
         model = request.data.get("model", "markowitz").lower()
         target_return = float(request.data.get("target_return", 0.1))
         risk_level = float(request.data.get("risk_level", 0.02))
-        sortino_l = float(request.data.get("sortino_l", 0.0))  # Новый параметр
+        sortino_l = float(request.data.get("sortino_l", 0.0))
         current_portfolio = request.data.get("current_portfolio", [])
 
         logger.info(f"Received optimization request: tickers={tickers}, model={model}, target_return={target_return}, risk_level={risk_level}, sortino_l={sortino_l}")

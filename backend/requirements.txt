@@ -9,4 +9,3 @@ numpy
 pandas
 scipy
 psutil
-PyPortfolioOpt

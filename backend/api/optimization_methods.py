@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from pypfopt import EfficientFrontier, risk_models, expected_returns
+from pypfopt import EfficientFrontier
 from scipy.optimize import minimize
 
 def optimize_markowitz(mu, S, target_return=0.1):
