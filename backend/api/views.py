@@ -10,7 +10,7 @@ from rest_framework import status
 from .models import Asset, HistoricalPrice
 from .serializers import AssetSerializer
 from .historical_data import fetch_current_price, fetch_historical_prices
-from pypfopt import expected_returns, EfficientFrontier, risk_models
+from pypfopt import expected_returns, EfficientFrontier
 from .optimization_methods import (
     optimize_markowitz,
     optimize_sharpe,
@@ -221,23 +221,44 @@ def optimize_portfolio(request):
             ).values('date', 'price')
             logger.info(f"Historical prices for {asset.ticker}: {list(prices)}")
             if not prices:
-                logger.warning(f"No historical prices for {asset.ticker}, adding fallback")
-                dates = [
-                    (datetime.now() - timedelta(days=2)).date(),
-                    (datetime.now() - timedelta(days=1)).date(),
-                    datetime.now().date()
-                ]
-                prices = [
-                    {'date': dates[0], 'price': asset.current_price * 0.99},
-                    {'date': dates[1], 'price': asset.current_price},
-                    {'date': dates[2], 'price': asset.current_price * 1.01}
-                ]
-                for price_entry in prices:
-                    HistoricalPrice.objects.update_or_create(
-                        asset=asset,
-                        date=price_entry['date'],
-                        defaults={'price': price_entry['price']}
-                    )
+                logger.warning(f"No historical prices for {asset.ticker}, fetching from API")
+                end_date = datetime.now().date()
+                start_date = end_date - timedelta(days=180)
+                historical_prices = fetch_historical_prices(asset.ticker, start_date, end_date, instrument_type)
+                
+                if historical_prices:
+                    for price_entry in historical_prices:
+                        HistoricalPrice.objects.update_or_create(
+                            asset=asset,
+                            date=price_entry['date'],
+                            defaults={'price': price_entry['price']}
+                        )
+                    prices = asset.historical_prices.filter(
+                        date__gte=start_date
+                    ).values('date', 'price')
+                    logger.info(f"Fetched {len(prices)} historical prices for {asset.ticker}")
+                else:
+                    logger.warning(f"No historical data from API for {asset.ticker}, adding fallback")
+                    dates = [
+                        (datetime.now() - timedelta(days=2)).date(),
+                        (datetime.now() - timedelta(days=1)).date(),
+                        datetime.now().date()
+                    ]
+                    prices = [
+                        {'date': dates[0], 'price': asset.current_price * 0.99},
+                        {'date': dates[1], 'price': asset.current_price},
+                        {'date': dates[2], 'price': asset.current_price * 1.01}
+                    ]
+                    for price_entry in prices:
+                        HistoricalPrice.objects.update_or_create(
+                            asset=asset,
+                            date=price_entry['date'],
+                            defaults={'price': price_entry['price']}
+                        )
+                    prices = asset.historical_prices.filter(
+                        date__gte=dates[0]
+                    ).values('date', 'price')
+
             price_series = pd.Series(
                 {p['date']: p['price'] for p in prices},
                 name=asset.ticker
