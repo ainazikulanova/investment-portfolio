@@ -39,6 +39,15 @@ class AssetSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Количество не может быть отрицательным.")
         return value
 
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        ret.update({
+            'hide_label': False,
+            'placeholder': f'Введите {self.fields["ticker"].label.lower()}' if 'ticker' in self.fields else '',
+            'autofocus': False
+        })
+        return ret
+
 class HistoricalPriceSerializer(serializers.ModelSerializer):
     class Meta:
         model = HistoricalPrice
