@@ -1,16 +1,22 @@
 import requests
 from datetime import datetime, timedelta
-from pypfopt import EfficientFrontier, risk_models, expected_returns
 import pandas as pd
-import numpy as np
 import logging
 from rest_framework import generics
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Asset, HistoricalPrice
-from .serializers import AssetSerializer
-from .historical_data import fetch_current_price, fetch_historical_prices
+from models import Asset, HistoricalPrice
+from serializers import AssetSerializer
+from historical_data import fetch_current_price, fetch_historical_prices
+from optimization_methods import (
+    optimize_markowitz,
+    optimize_sharpe,
+    optimize_sortino,
+    optimize_rachev,
+    optimize_max_drawdown,
+    calculate_additional_metrics
+)
 
 logger = logging.getLogger(__name__)
 
@@ -145,16 +151,17 @@ def optimize_portfolio(request):
         model = request.data.get("model", "markowitz").lower()
         target_return = float(request.data.get("target_return", 0.1))
         risk_level = float(request.data.get("risk_level", 0.02))
+        sortino_l = float(request.data.get("sortino_l", 0.0))  # Новый параметр
         current_portfolio = request.data.get("current_portfolio", [])
 
-        logger.info(f"Received optimization request: tickers={tickers}, model={model}, target_return={target_return}, risk_level={risk_level}")
+        logger.info(f"Received optimization request: tickers={tickers}, model={model}, target_return={target_return}, risk_level={risk_level}, sortino_l={sortino_l}")
 
         if len(tickers) < 2:
             logger.error("Less than 2 valid tickers provided for optimization")
             return Response({'error': 'At least 2 valid tickers are required'}, status=400)
 
-        if model not in ['markowitz', 'sharpe']:
-            return Response({'error': 'Invalid model. Use "markowitz" or "sharpe"'}, status=400)
+        if model not in ['markowitz', 'sharpe', 'sortino', 'rachev', 'max_drawdown']:
+            return Response({'error': 'Invalid model. Use "markowitz", "sharpe", "sortino", "rachev", or "max_drawdown"'}, status=400)
 
         normalized_tickers = [TICKER_MAPPING.get(t.lower(), t.upper().replace('.ME', '')) for t in tickers]
         logger.info(f"Normalized tickers: {normalized_tickers}")
@@ -187,9 +194,7 @@ def optimize_portfolio(request):
         portfolio_details = []
         for asset in assets:
             if asset.quantity > 0 and asset.buy_price > 0 and asset.current_price > 0:
-                # Доходность актива
                 asset_return = ((asset.current_price - asset.buy_price) / asset.buy_price) * 100
-                # Стоимость актива в портфеле
                 asset_value = asset.quantity * asset.current_price
                 total_value += asset_value
                 weighted_returns += asset_return * (asset_value / total_value if total_value > 0 else 0)
@@ -204,8 +209,9 @@ def optimize_portfolio(request):
         
         actual_portfolio_return = weighted_returns if total_value > 0 else 0
 
-        # Сбор исторических данных для ожидаемой доходности
+        # Сбор исторических данных
         data = {}
+        returns_data = {}
         for asset in assets:
             instrument_type = ticker_types.get(asset.ticker, asset.instrument_type)
             prices = asset.historical_prices.filter(
@@ -256,9 +262,11 @@ def optimize_portfolio(request):
                     name=asset.ticker
                 )
             data[asset.ticker] = price_series
-            logger.info(f"Price series for {asset.ticker}: {price_series.to_dict()}")
+            returns = price_series.pct_change().dropna()
+            returns_data[asset.ticker] = returns
 
         df = pd.DataFrame(data)
+        returns_df = pd.DataFrame(returns_data)
         logger.info(f"DataFrame for optimization: {df}")
         if df.empty or len(df.columns) < 2:
             logger.error("Insufficient historical data for optimization")
@@ -275,19 +283,25 @@ def optimize_portfolio(request):
                 mu[ticker] += coupon_rate / 252
 
         S = risk_models.sample_cov(df)
-        ef = EfficientFrontier(mu, S)
 
-        if model == 'sharpe':
-            weights = ef.max_sharpe(risk_free_rate=risk_level)
+        # Выбор метода оптимизации
+        if model == 'markowitz':
+            weights, performance = optimize_markowitz(mu, S, target_return)
+        elif model == 'sharpe':
+            weights, performance = optimize_sharpe(mu, S, risk_free_rate=risk_level)
+        elif model == 'sortino':
+            weights, performance = optimize_sortino(mu, S, returns_df, risk_free_rate=risk_level, L=sortino_l)
+        elif model == 'rachev':
+            weights, performance = optimize_rachev(mu, S, returns_df, risk_free_rate=risk_level)
+        elif model == 'max_drawdown':
+            weights, performance = optimize_max_drawdown(mu, S, returns_df)
         else:
-            if target_return > 0:
-                weights = ef.efficient_return(target_return)
-            else:
-                weights = ef.min_volatility()
+            raise ValueError("Unknown optimization model")
 
-        cleaned_weights = ef.clean_weights()
-        performance = ef.portfolio_performance(risk_free_rate=risk_level)
+        cleaned_weights = weights if model == 'max_drawdown' else {k: v for k, v in weights.items()}
+        additional_metrics = calculate_additional_metrics(cleaned_weights, returns_df, risk_free_rate=risk_level, L=sortino_l)
 
+        # Эффективная граница
         ef_frontier = []
         returns = np.linspace(min(mu), max(mu), 10)
         for ret in returns:
@@ -302,7 +316,6 @@ def optimize_portfolio(request):
             except ValueError:
                 continue
 
-        # Пересчитываем total_value для рекомендаций
         total_value = sum(
             item['quantity'] * Asset.objects.get(ticker=item['ticker']).current_price
             for item in current_portfolio if Asset.objects.filter(ticker=item['ticker']).exists()
@@ -333,19 +346,24 @@ def optimize_portfolio(request):
         return Response({
             'tickers': list(cleaned_weights.keys()),
             'weights': [float(w) for w in cleaned_weights.values()],
-            'expected_return': performance[0] * 100,  # Ожидаемая доходность (на основе исторических данных)
-            'actual_return': actual_portfolio_return,  # Реальная доходность
-            'portfolio_details': portfolio_details,
-            'risk': performance[1] * 100,
-            'sharpe': performance[2] if model == 'sharpe' else None,
+            'expected_return': performance[0] * 100 if model in ['markowitz', 'sharpe'] else performance[0] * 100,
+            'actual_return': actual_portfolio_return,
+            'risk': performance[1] * 100 if model in ['markowitz', 'sharpe'] else performance[1] * 100,
+            'sharpe': performance[2] if model == 'sharpe' else (performance[0] - risk_level) / performance[1] if model == 'markowitz' and performance[1] > 0 else 0,
+            'sortino': additional_metrics['sortino'],
+            'rachev': additional_metrics['rachev'],
+            'max_drawdown': additional_metrics['max_drawdown'] * 100,
+            'calmar': additional_metrics['calmar'],
+            'sterling': additional_metrics['sterling'],
             'frontier': ef_frontier,
             'recommendations': recommendations,
+            'portfolio_details': portfolio_details,
             'explanation': (
-                "Модель Марковица минимизирует риск для заданной доходности. "
-                "Модель Шарпа максимизирует коэффициент Шарпа (доходность/риск). "
-                f"Вы выбрали модель: {model}. "
+                f"Модель {model} оптимизирует портфель. "
                 f"Ожидаемая доходность: {target_return*100}%, уровень риска: {risk_level}. "
-                f"Реальная доходность портфеля: {actual_portfolio_return:.2f}%."
+                f"Sortino: {additional_metrics['sortino']:.2f}, Rachev: {additional_metrics['rachev']:.2f}, "
+                f"Max Drawdown: {additional_metrics['max_drawdown']*100:.2f}%, Calmar: {additional_metrics['calmar']:.2f}, "
+                f"Sterling: {additional_metrics['sterling']:.2f}."
             )
         })
 

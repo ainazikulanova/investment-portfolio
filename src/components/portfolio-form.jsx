@@ -14,6 +14,8 @@ function PortfolioForm() {
   const [tickers, setTickers] = useState("");
   const [model, setModel] = useState("markowitz");
   const [targetReturn, setTargetReturn] = useState(0.1);
+  const [riskLevel, setRiskLevel] = useState(0.02); // Безрисковая ставка
+  const [sortinoL, setSortinoL] = useState(0.0); // Минимальный уровень доходности для Sortino
   const [error, setError] = useState("");
   const [showManualPriceInput, setShowManualPriceInput] = useState(false);
   const BASE_URL = "https://investment-portfolio-z2zm.onrender.com";
@@ -166,7 +168,7 @@ function PortfolioForm() {
       .map((ticker) => ticker.trim())
       .filter((ticker) => ticker !== "");
     if (tickerList.length < 2) {
-      setError("Введите как минимум 2 для оптимизации.");
+      setError("Введите как минимум 2 тикера для оптимизации.");
       return;
     }
 
@@ -180,7 +182,8 @@ function PortfolioForm() {
       tickers: tickerList,
       model,
       targetReturn,
-      riskLevel: 0.02,
+      riskLevel,
+      sortinoL,
       currentPortfolio,
     });
 
@@ -189,8 +192,9 @@ function PortfolioForm() {
         tickerList,
         model,
         targetReturn,
-        0.02,
-        currentPortfolio
+        riskLevel,
+        currentPortfolio,
+        model === "sortino" ? sortinoL : undefined // Передаём L только для Sortino
       );
       setError("");
     } catch (error) {
@@ -268,12 +272,12 @@ function PortfolioForm() {
       </form>
 
       <form
-        className="grid grid-cols-1 md:grid-cols-4 gap-4"
+        className="grid grid-cols-1 md:grid-cols-5 gap-4"
         onSubmit={handleOptimize}
       >
         <input
           type="text"
-          placeholder="Тикеры"
+          placeholder="Тикеры (через запятую)"
           value={tickers}
           onChange={(e) => setTickers(e.target.value)}
           required
@@ -286,6 +290,9 @@ function PortfolioForm() {
         >
           <option value="markowitz">Марковиц</option>
           <option value="sharpe">Шарп</option>
+          <option value="sortino">Сортино</option>
+          <option value="rachev">Рачева</option>
+          <option value="max_drawdown">Максимальная просадка</option>
         </select>
         {model === "markowitz" && (
           <input
@@ -293,6 +300,24 @@ function PortfolioForm() {
             placeholder="Целевая доходность (%)"
             value={targetReturn * 100}
             onChange={(e) => setTargetReturn(e.target.value / 100)}
+            step="0.1"
+            className="w-full border border-gray-300 rounded-lg p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition duration-200"
+          />
+        )}
+        <input
+          type="number"
+          placeholder="Безрисковая ставка (%)"
+          value={riskLevel * 100}
+          onChange={(e) => setRiskLevel(e.target.value / 100)}
+          step="0.1"
+          className="w-full border border-gray-300 rounded-lg p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition duration-200"
+        />
+        {model === "sortino" && (
+          <input
+            type="number"
+            placeholder="Мин. доходность L (%)"
+            value={sortinoL * 100}
+            onChange={(e) => setSortinoL(e.target.value / 100)}
             step="0.1"
             className="w-full border border-gray-300 rounded-lg p-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition duration-200"
           />

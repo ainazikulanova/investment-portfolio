@@ -1,105 +1,32 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useState, useEffect } from "react";
 import axios from "axios";
 
-const PortfolioContext = createContext();
+export const PortfolioContext = createContext();
 
-const TICKER_MAPPING = {
-  sberbank: "SBER",
-  gazprom: "GAZP",
-  lukoil: "LKOH",
-  yandex: "YNDX",
-};
+const BASE_URL = "https://investment-portfolio-z2zm.onrender.com";
 
-export function PortfolioProvider({ children }) {
+export const PortfolioProvider = ({ children }) => {
   const [assets, setAssets] = useState([]);
-  const [optimizationResult, setOptimizationResult] = useState(null);
-  const [error, setError] = useState("");
-  const API_URL = "https://investment-portfolio-z2zm.onrender.com/api";
-
-  const fetchAssets = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/assets/`, {
-        headers: { "Content-Type": "application/json" },
-      });
-      setAssets(response.data);
-      setError("");
-    } catch (error) {
-      console.error("Error fetching assets:", error);
-      setAssets([]);
-      setError("Не удалось загрузить активы");
-    }
-  };
+  const [optimizedPortfolio, setOptimizedPortfolio] = useState(null);
 
   useEffect(() => {
+    const fetchAssets = async () => {
+      try {
+        const response = await axios.get(`${BASE_URL}/api/assets/`);
+        setAssets(response.data);
+      } catch (error) {
+        console.error("Failed to fetch assets:", error);
+      }
+    };
     fetchAssets();
   }, []);
 
-  const addAsset = async (newAsset) => {
+  const addAsset = async (asset) => {
     try {
-      const tickerLower = newAsset.ticker.toLowerCase();
-      const normalizedTicker =
-        TICKER_MAPPING[tickerLower] || tickerLower.toUpperCase();
-      const existingAsset = assets.find(
-        (asset) => asset.ticker === normalizedTicker
-      );
-
-      if (existingAsset) {
-        const updatedQuantity =
-          existingAsset.quantity + (newAsset.quantity || 0);
-        const response = await axios.patch(
-          `${API_URL}/assets/${existingAsset.id}/`,
-          {
-            quantity: updatedQuantity,
-            buy_price: newAsset.buy_price || existingAsset.buy_price,
-          },
-          {
-            headers: { "Content-Type": "application/json" },
-          }
-        );
-        setAssets(
-          assets.map((asset) =>
-            asset.id === existingAsset.id ? response.data : asset
-          )
-        );
-      } else {
-        const response = await axios.post(
-          `${API_URL}/assets/`,
-          {
-            name: normalizedTicker,
-            ticker: normalizedTicker,
-            buy_price: newAsset.buy_price || 0,
-            current_price: newAsset.current_price || 0,
-            quantity: newAsset.quantity || 0,
-          },
-          {
-            headers: { "Content-Type": "application/json" },
-          }
-        );
-        setAssets((prevAssets) => [...prevAssets, response.data]);
-      }
-      setError("");
+      const response = await axios.post(`${BASE_URL}/api/assets/`, asset);
+      setAssets([...assets, response.data]);
     } catch (error) {
-      console.error("Error adding asset:", error);
-      setError("Не удалось добавить актив");
-    }
-  };
-
-  const deleteAsset = async (id) => {
-    try {
-      await axios.delete(`${API_URL}/assets/${id}/`, {
-        headers: { "Content-Type": "application/json" },
-      });
-      setAssets((prevAssets) => prevAssets.filter((asset) => asset.id !== id));
-      setError("");
-    } catch (error) {
-      console.error("Error deleting asset:", error);
-      const errorMessage = error.response?.data?.error || "Неизвестная ошибка";
-      setError(`Не удалось удалить актив: ${errorMessage}`);
-      if (error.response?.status === 404) {
-        setAssets((prevAssets) =>
-          prevAssets.filter((asset) => asset.id !== id)
-        );
-      }
+      throw new Error(error.response?.data?.error || "Failed to add asset");
     }
   };
 
@@ -108,48 +35,31 @@ export function PortfolioProvider({ children }) {
     model,
     targetReturn,
     riskLevel,
-    currentPortfolio
+    currentPortfolio,
+    sortinoL
   ) => {
     try {
-      const cleanedTickers = tickers.map((ticker) => {
-        const tickerLower = ticker.toLowerCase();
-        return TICKER_MAPPING[tickerLower] || tickerLower.toUpperCase();
-      });
-      console.log("Cleaned tickers for optimization:", cleanedTickers);
-      const response = await axios.post(`${API_URL}/optimize/`, {
-        tickers: cleanedTickers.join(","),
+      const response = await axios.post(`${BASE_URL}/api/optimize/`, {
+        tickers: tickers.join(","),
         model,
         target_return: targetReturn,
         risk_level: riskLevel,
         current_portfolio: currentPortfolio,
+        ...(sortinoL !== undefined && { sortino_l: sortinoL }),
       });
-      setOptimizationResult(response.data);
-      setError("");
-      return response.data;
+      setOptimizedPortfolio(response.data);
     } catch (error) {
-      console.error("Error optimizing portfolio:", error);
-      const errorMessage = error.response?.data?.error || "Неизвестная ошибка";
-      setError(`Не удалось оптимизировать портфель: ${errorMessage}`);
-      throw error;
+      throw new Error(error.response?.data?.error || "Optimization failed");
     }
   };
 
   return (
     <PortfolioContext.Provider
-      value={{
-        assets,
-        addAsset,
-        deleteAsset,
-        optimizationResult,
-        optimizePortfolio,
-        error,
-      }}
+      value={{ assets, addAsset, optimizedPortfolio, optimizePortfolio }}
     >
       {children}
     </PortfolioContext.Provider>
   );
-}
+};
 
-export function usePortfolio() {
-  return useContext(PortfolioContext);
-}
+export const usePortfolio = () => React.useContext(PortfolioContext);

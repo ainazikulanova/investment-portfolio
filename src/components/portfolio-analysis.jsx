@@ -99,10 +99,26 @@ function PortfolioAnalysis() {
                 {optimizationResult.actual_return?.toFixed(2) || 0}%
               </p>
               <p>
-                Коэффициент Шарпа:{" "}
-                {optimizationResult.sharpe
-                  ? optimizationResult.sharpe.toFixed(2)
-                  : "Н/Д"}
+                Коэффициент Шарпа: {optimizationResult.sharpe?.toFixed(2) || 0}
+              </p>
+              <p>
+                Коэффициент Сортино:{" "}
+                {optimizationResult.sortino?.toFixed(2) || 0}
+              </p>
+              <p>
+                Коэффициент Рачева: {optimizationResult.rachev?.toFixed(2) || 0}
+              </p>
+              <p>
+                Максимальная просадка:{" "}
+                {optimizationResult.max_drawdown?.toFixed(2) || 0}%
+              </p>
+              <p>
+                Коэффициент Калмара:{" "}
+                {optimizationResult.calmar?.toFixed(2) || 0}
+              </p>
+              <p>
+                Коэффициент Стерлинга:{" "}
+                {optimizationResult.sterling?.toFixed(2) || 0}
               </p>
               <p>Риск: {optimizationResult.risk?.toFixed(2) || 0}%</p>
             </>
