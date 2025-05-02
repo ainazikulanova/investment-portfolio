@@ -55,7 +55,8 @@ function PortfolioSummary({ assets, optimizationResult }) {
     const {
       tickers,
       weights,
-      return: portReturn,
+      expected_return,
+      actual_return,
       risk,
       sharpe,
       frontier,
@@ -89,7 +90,7 @@ function PortfolioSummary({ assets, optimizationResult }) {
         },
         {
           label: "Ваш портфель",
-          data: [{ x: risk, y: portReturn }],
+          data: [{ x: risk, y: expected_return }],
           backgroundColor: "#FF6384",
           pointRadius: 8,
         },
@@ -97,9 +98,10 @@ function PortfolioSummary({ assets, optimizationResult }) {
     };
 
     performance = {
-      return: portReturn,
-      risk: risk,
-      sharpe: sharpe,
+      expected_return,
+      actual_return,
+      risk,
+      sharpe,
     };
 
     recommendations = recs;
@@ -118,7 +120,7 @@ function PortfolioSummary({ assets, optimizationResult }) {
             totalValue > 0 ? ((assetValue / totalValue) * 100).toFixed(2) : 0;
           return (
             <li
-              key={asset.name}
+              key={asset.id}
               className="flex justify-between items-center p-2 bg-gray-50 rounded-lg"
             >
               <span className="font-medium">{asset.name}</span>
@@ -170,8 +172,14 @@ function PortfolioSummary({ assets, optimizationResult }) {
           </div>
           <div className="mt-4">
             <h3 className="text-md font-semibold">Характеристики портфеля</h3>
-            <p>Доходность: {performance.return.toFixed(2)}% в год</p>
-            <p>Риск: {performance.risk.toFixed(2)}% в год</p>
+            <p>
+              Ожидаемая доходность:{" "}
+              {performance.expected_return?.toFixed(2) || 0}% в год
+            </p>
+            <p>
+              Реальная доходность: {performance.actual_return?.toFixed(2) || 0}%
+            </p>
+            <p>Риск: {performance.risk?.toFixed(2) || 0}% в год</p>
             {performance.sharpe && (
               <p>Коэффициент Шарпа: {performance.sharpe.toFixed(2)}</p>
             )}
@@ -181,8 +189,11 @@ function PortfolioSummary({ assets, optimizationResult }) {
             <div className="mt-4">
               <h3 className="text-md font-semibold">Рекомендации</h3>
               <ul className="space-y-2">
-                {recommendations.map((rec, index) => (
-                  <li key={index} className="p-2 bg-gray-50 rounded-lg">
+                {recommendations.map((rec) => (
+                  <li
+                    key={`${rec.ticker}-${rec.action}-${rec.quantity}`}
+                    className="p-2 bg-gray-50 rounded-lg"
+                  >
                     {rec.action} {rec.quantity} активов {rec.ticker} (на сумму ₽
                     {rec.value.toFixed(2)})
                   </li>

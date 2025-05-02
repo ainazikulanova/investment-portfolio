@@ -29,6 +29,7 @@ function PortfolioAnalysis() {
     (sum, asset) => sum + asset.current_price * asset.quantity,
     0
   );
+
   const pieData = {
     labels: assets.map((asset) => asset.name),
     datasets: [
@@ -57,7 +58,10 @@ function PortfolioAnalysis() {
           {
             label: "Ваш портфель",
             data: [
-              { x: optimizationResult.risk, y: optimizationResult.return },
+              {
+                x: optimizationResult.risk,
+                y: optimizationResult.expected_return,
+              },
             ],
             backgroundColor: "#FF6384",
             pointRadius: 8,
@@ -86,14 +90,21 @@ function PortfolioAnalysis() {
           <h2 className="text-lg font-semibold mb-4">Метрики</h2>
           {optimizationResult ? (
             <>
-              <p>Доходность: {optimizationResult.return.toFixed(2)}%</p>
+              <p>
+                Ожидаемая доходность:{" "}
+                {optimizationResult.expected_return?.toFixed(2) || 0}%
+              </p>
+              <p>
+                Реальная доходность:{" "}
+                {optimizationResult.actual_return?.toFixed(2) || 0}%
+              </p>
               <p>
                 Коэффициент Шарпа:{" "}
                 {optimizationResult.sharpe
                   ? optimizationResult.sharpe.toFixed(2)
                   : "Н/Д"}
               </p>
-              <p>Риск: {optimizationResult.risk.toFixed(2)}%</p>
+              <p>Риск: {optimizationResult.risk?.toFixed(2) || 0}%</p>
             </>
           ) : (
             <p className="text-gray-500">
@@ -124,8 +135,11 @@ function PortfolioAnalysis() {
         <div className="bg-white p-4 rounded-lg shadow mt-6">
           <h2 className="text-lg font-semibold mb-4">Рекомендации</h2>
           <ul className="space-y-2">
-            {optimizationResult.recommendations.map((rec, index) => (
-              <li key={index} className="p-2 bg-gray-50 rounded-lg">
+            {optimizationResult.recommendations.map((rec) => (
+              <li
+                key={`${rec.ticker}-${rec.action}-${rec.quantity}`}
+                className="p-2 bg-gray-50 rounded-lg"
+              >
                 {rec.action} {rec.quantity} активов {rec.ticker} (на сумму ₽
                 {rec.value.toFixed(2)})
               </li>
