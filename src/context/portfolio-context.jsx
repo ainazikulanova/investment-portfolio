@@ -35,7 +35,9 @@ export const PortfolioProvider = ({ children }) => {
       await axios.delete(`${BASE_URL}/api/assets/${id}/`);
       const response = await axios.get(`${BASE_URL}/api/assets/`);
       setAssets(response.data);
+      console.log(`Asset with id ${id} removed successfully`);
     } catch (error) {
+      console.error("Failed to remove asset:", error);
       throw new Error(error.response?.data?.error || "Failed to remove asset");
     }
   };

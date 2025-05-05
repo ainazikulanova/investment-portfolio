@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import { usePortfolio } from "../context/portfolio-context";
 import PortfolioTable from "./portfolio-table";
+import PortfolioAnalysis from "./portfolio-analysis";
 
 function PortfolioForm() {
   const {
@@ -20,9 +21,9 @@ function PortfolioForm() {
   });
   const [tickers, setTickers] = useState("");
   const [model, setModel] = useState("markowitz");
-  const [targetReturn, setTargetReturn] = useState(0.1);
-  const [riskLevel, setRiskLevel] = useState(0.02); // Безрисковая ставка
-  const [sortinoL, setSortinoL] = useState(0.0); // Минимальный уровень доходности для Sortino
+  const [targetReturn, setTargetReturn] = useState(0.05);
+  const [riskLevel, setRiskLevel] = useState(0.02);
+  const [sortinoL, setSortinoL] = useState(0.0);
   const [error, setError] = useState("");
   const [showManualPriceInput, setShowManualPriceInput] = useState(false);
   const BASE_URL = "https://investment-portfolio-z2zm.onrender.com";
@@ -174,9 +175,7 @@ function PortfolioForm() {
         setError("Актив не найден");
         return;
       }
-
-      await axios.delete(`${BASE_URL}/api/assets/${id}/`);
-      removeAsset(id);
+      await removeAsset(id);
     } catch (error) {
       console.error("Error deleting asset:", error);
       setError(`Не удалось удалить актив: ${error.message}`);
@@ -218,7 +217,7 @@ function PortfolioForm() {
         targetReturn,
         riskLevel,
         currentPortfolio,
-        model === "sortino" ? sortinoL : undefined // Передаём L только для Sortino
+        model === "sortino" ? sortinoL : undefined
       );
       setError("");
     } catch (error) {
@@ -361,26 +360,38 @@ function PortfolioForm() {
       )}
 
       {optimizedPortfolio && (
-        <div className="mt-6 p-4 bg-white rounded-lg shadow-md">
-          <h3 className="text-lg font-semibold mb-2 text-gray-800">
+        <div className="mt-6 p-6 bg-green-50 border-l-4 border-green-500 rounded-lg shadow-lg">
+          <h3 className="text-xl font-semibold mb-4 text-green-800">
             Результаты оптимизации
           </h3>
-          <p>
-            Ожидаемая доходность:{" "}
+          <p className="text-gray-700">
+            <strong>Ожидаемая доходность:</strong>{" "}
             {(optimizedPortfolio.expected_return || 0).toFixed(2)}%
           </p>
-          <p>Риск: {(optimizedPortfolio.risk || 0).toFixed(2)}%</p>
-          <p>Sharpe: {(optimizedPortfolio.sharpe || 0).toFixed(2)}</p>
-          <p>Рекомендации:</p>
-          <ul>
-            {optimizedPortfolio.recommendations &&
-              optimizedPortfolio.recommendations.map((rec, index) => (
-                <li key={index}>
-                  {rec.ticker}: {rec.action} {rec.quantity} единиц на{" "}
-                  {rec.value.toFixed(2)} руб.
-                </li>
-              ))}
-          </ul>
+          <p className="text-gray-700">
+            <strong>Реальная доходность портфеля:</strong>{" "}
+            {(optimizedPortfolio.actual_return || 0).toFixed(2)}%
+          </p>
+          <p className="text-gray-700">
+            <strong>Риск:</strong> {(optimizedPortfolio.risk || 0).toFixed(2)}%
+          </p>
+          <p className="text-gray-700">
+            <strong>Коэффициент Шарпа:</strong>{" "}
+            {(optimizedPortfolio.sharpe || 0).toFixed(2)}
+          </p>
+          <p className="text-gray-700">
+            <strong>Веса активов:</strong>{" "}
+            {optimizedPortfolio.tickers.map((ticker, index) => (
+              <span key={ticker}>
+                {ticker}: {(optimizedPortfolio.weights[index] * 100).toFixed(2)}
+                %{index < optimizedPortfolio.tickers.length - 1 ? ", " : ""}
+              </span>
+            ))}
+          </p>
+          <p className="text-gray-700 mt-2">
+            <strong>Описание:</strong> {optimizedPortfolio.explanation}
+          </p>
+          <div className="mt-6"></div>
         </div>
       )}
     </div>
