@@ -10,7 +10,7 @@ from rest_framework import status
 from .models import Asset, HistoricalPrice
 from .serializers import AssetSerializer
 from .historical_data import fetch_current_price, fetch_historical_prices
-from pypfopt import expected_returns, EfficientFrontier
+from pypfopt import expected_returns, risk_models, EfficientFrontier
 from .optimization_methods import (
     optimize_markowitz,
     optimize_sharpe,
@@ -43,6 +43,7 @@ class AssetListCreate(generics.ListCreateAPIView):
 
     def create(self, request, *args, **kwargs):
         ticker = request.data.get('ticker')
+        logger.info(f"Received request to create/update asset with data: {request.data}")
         if not ticker:
             logger.error("Ticker is missing in request data")
             return Response({'error': 'Ticker is required'}, status=status.HTTP_400_BAD_REQUEST)
@@ -56,10 +57,17 @@ class AssetListCreate(generics.ListCreateAPIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Asset.DoesNotExist:
             serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-            logger.info(f"Created new asset {ticker} with data: {serializer.data}")
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            try:
+                serializer.is_valid(raise_exception=True)
+                serializer.save()
+                logger.info(f"Created new asset {ticker} with data: {serializer.data}")
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                logger.error(f"Failed to create asset {ticker}: {str(e)}")
+                return Response({'error': f'Failed to add asset {ticker}: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Server error updating asset {ticker}: {str(e)}")
+            return Response({'error': f'Failed to update asset {ticker}: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class AssetDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Asset.objects.all()
@@ -220,6 +228,8 @@ def optimize_portfolio(request):
                 date__gte=datetime.now().date() - timedelta(days=180)
             ).values('date', 'price')
             logger.info(f"Historical prices for {asset.ticker}: {list(prices)}")
+
+            # Если исторических цен нет, пытаемся загрузить их из API
             if not prices:
                 logger.warning(f"No historical prices for {asset.ticker}, fetching from API")
                 end_date = datetime.now().date()
@@ -238,6 +248,7 @@ def optimize_portfolio(request):
                     ).values('date', 'price')
                     logger.info(f"Fetched {len(prices)} historical prices for {asset.ticker}")
                 else:
+                    # Если API не вернул данные, используем резервные данные
                     logger.warning(f"No historical data from API for {asset.ticker}, adding fallback")
                     dates = [
                         (datetime.now() - timedelta(days=2)).date(),
@@ -293,11 +304,11 @@ def optimize_portfolio(request):
         logger.info(f"DataFrame for optimization: {df}")
         if df.empty or len(df.columns) < 2:
             logger.error("Insufficient historical data for optimization")
-            return Response({'error': 'Insufficient historical data'}, status=400)
+            return Response({'error': 'Insufficient historical data for optimization'}, status=400)
 
         if len(df) < 2:
             logger.error("Not enough price data points for optimization")
-            return Response({'error': 'Not enough price data points'}, status=400)
+            return Response({'error': 'Not enough price data points for optimization'}, status=400)
 
         mu = expected_returns.mean_historical_return(df)
         for ticker in df.columns:
@@ -308,18 +319,22 @@ def optimize_portfolio(request):
         S = risk_models.sample_cov(df)
 
         # Выбор метода оптимизации
-        if model == 'markowitz':
-            weights, performance = optimize_markowitz(mu, S, target_return)
-        elif model == 'sharpe':
-            weights, performance = optimize_sharpe(mu, S, risk_free_rate=risk_level)
-        elif model == 'sortino':
-            weights, performance = optimize_sortino(mu, S, returns_df, risk_free_rate=risk_level, L=sortino_l)
-        elif model == 'rachev':
-            weights, performance = optimize_rachev(mu, S, returns_df, risk_free_rate=risk_level)
-        elif model == 'max_drawdown':
-            weights, performance = optimize_max_drawdown(mu, S, returns_df)
-        else:
-            raise ValueError("Unknown optimization model")
+        try:
+            if model == 'markowitz':
+                weights, performance = optimize_markowitz(mu, S, target_return)
+            elif model == 'sharpe':
+                weights, performance = optimize_sharpe(mu, S, risk_free_rate=risk_level)
+            elif model == 'sortino':
+                weights, performance = optimize_sortino(mu, S, returns_df, risk_free_rate=risk_level, L=sortino_l)
+            elif model == 'rachev':
+                weights, performance = optimize_rachev(mu, S, returns_df, risk_free_rate=risk_level)
+            elif model == 'max_drawdown':
+                weights, performance = optimize_max_drawdown(mu, S, returns_df)
+            else:
+                raise ValueError("Unknown optimization model")
+        except Exception as e:
+            logger.error(f"Optimization failed: {str(e)}")
+            return Response({'error': f'Optimization failed: {str(e)}'}, status=400)
 
         cleaned_weights = weights if model == 'max_drawdown' else {k: v for k, v in weights.items()}
         additional_metrics = calculate_additional_metrics(cleaned_weights, returns_df, risk_free_rate=risk_level, L=sortino_l)
@@ -336,7 +351,8 @@ def optimize_portfolio(request):
                     'return': perf[0] * 100,
                     'risk': perf[1] * 100
                 })
-            except ValueError:
+            except ValueError as e:
+                logger.warning(f"Skipped frontier point due to: {str(e)}")
                 continue
 
         total_value = sum(
@@ -366,7 +382,7 @@ def optimize_portfolio(request):
                     'value': abs(quantity_diff) * current_price
                 })
 
-        return Response({
+        result = {
             'tickers': list(cleaned_weights.keys()),
             'weights': [float(w) for w in cleaned_weights.values()],
             'expected_return': performance[0] * 100 if model in ['markowitz', 'sharpe'] else performance[0] * 100,
@@ -388,7 +404,9 @@ def optimize_portfolio(request):
                 f"Max Drawdown: {additional_metrics['max_drawdown']*100:.2f}%, Calmar: {additional_metrics['calmar']:.2f}, "
                 f"Sterling: {additional_metrics['sterling']:.2f}."
             )
-        })
+        }
+        logger.info(f"Optimization result: {result}")
+        return Response(result)
 
     except ValueError as e:
         logger.error(f"Invalid input in optimize_portfolio: {str(e)}")
