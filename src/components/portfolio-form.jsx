@@ -4,7 +4,13 @@ import { usePortfolio } from "../context/portfolio-context";
 import PortfolioTable from "./portfolio-table";
 
 function PortfolioForm() {
-  const { assets, addAsset, optimizePortfolio, removeAsset } = usePortfolio();
+  const {
+    assets,
+    addAsset,
+    optimizedPortfolio,
+    optimizePortfolio,
+    removeAsset,
+  } = usePortfolio();
   const [formData, setFormData] = useState({
     name: "",
     buy_price: "",
@@ -168,6 +174,7 @@ function PortfolioForm() {
         setError("Актив не найден");
         return;
       }
+
       await axios.delete(`${BASE_URL}/api/assets/${id}/`);
       removeAsset(id);
     } catch (error) {
@@ -351,6 +358,30 @@ function PortfolioForm() {
 
       {assets.length > 0 && (
         <PortfolioTable assets={assets} onDeleteAsset={handleDeleteAsset} />
+      )}
+
+      {optimizedPortfolio && (
+        <div className="mt-6 p-4 bg-white rounded-lg shadow-md">
+          <h3 className="text-lg font-semibold mb-2 text-gray-800">
+            Результаты оптимизации
+          </h3>
+          <p>
+            Ожидаемая доходность:{" "}
+            {(optimizedPortfolio.expected_return || 0).toFixed(2)}%
+          </p>
+          <p>Риск: {(optimizedPortfolio.risk || 0).toFixed(2)}%</p>
+          <p>Sharpe: {(optimizedPortfolio.sharpe || 0).toFixed(2)}</p>
+          <p>Рекомендации:</p>
+          <ul>
+            {optimizedPortfolio.recommendations &&
+              optimizedPortfolio.recommendations.map((rec, index) => (
+                <li key={index}>
+                  {rec.ticker}: {rec.action} {rec.quantity} единиц на{" "}
+                  {rec.value.toFixed(2)} руб.
+                </li>
+              ))}
+          </ul>
+        </div>
       )}
     </div>
   );

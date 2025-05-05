@@ -1,10 +1,9 @@
 import { usePortfolio } from "../context/portfolio-context";
 import PortfolioForm from "./portfolio-form";
-import PortfolioTable from "./portfolio-table";
 import PortfolioSummary from "./portfolio-summary";
 
 function Portfolio() {
-  const { assets, deleteAsset, optimizationResult } = usePortfolio();
+  const { assets, optimizationResult } = usePortfolio();
 
   const calculatePortfolioReturn = () => {
     if (assets.length === 0) return 0;
@@ -34,7 +33,6 @@ function Portfolio() {
             assets={assets}
             optimizationResult={optimizationResult}
           />
-          <PortfolioTable assets={assets} onDeleteAsset={deleteAsset} />
         </>
       ) : (
         <p className="text-center text-gray-500">Нет активов</p>

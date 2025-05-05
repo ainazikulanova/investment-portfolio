@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect } from "react";
 import axios from "axios";
+
 export const PortfolioContext = createContext();
 
 const BASE_URL = "https://investment-portfolio-z2zm.onrender.com";
@@ -32,7 +33,8 @@ export const PortfolioProvider = ({ children }) => {
   const removeAsset = async (id) => {
     try {
       await axios.delete(`${BASE_URL}/api/assets/${id}/`);
-      setAssets((prevAssets) => prevAssets.filter((asset) => asset.id !== id));
+      const response = await axios.get(`${BASE_URL}/api/assets/`);
+      setAssets(response.data);
     } catch (error) {
       throw new Error(error.response?.data?.error || "Failed to remove asset");
     }
