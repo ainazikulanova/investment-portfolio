@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { usePortfolio } from "../context/portfolio-context";
+import PortfolioTable from "./portfolio-table";
 
 function PortfolioForm() {
-  const { assets, addAsset, optimizePortfolio } = usePortfolio();
+  const { assets, addAsset, optimizePortfolio, removeAsset } = usePortfolio();
   const [formData, setFormData] = useState({
     name: "",
     buy_price: "",
@@ -159,6 +160,22 @@ function PortfolioForm() {
     }
   };
 
+  const handleDeleteAsset = async (id) => {
+    setError("");
+    try {
+      const assetToDelete = assets.find((asset) => asset.id === id);
+      if (!assetToDelete) {
+        setError("Актив не найден");
+        return;
+      }
+      await axios.delete(`${BASE_URL}/api/assets/${id}/`);
+      removeAsset(id);
+    } catch (error) {
+      console.error("Error deleting asset:", error);
+      setError(`Не удалось удалить актив: ${error.message}`);
+    }
+  };
+
   const handleOptimize = async (e) => {
     e.preventDefault();
     setError("");
@@ -272,7 +289,7 @@ function PortfolioForm() {
       </form>
 
       <form
-        className="grid grid-cols-1 md:grid-cols-5 gap-4"
+        className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8"
         onSubmit={handleOptimize}
       >
         <input
@@ -331,6 +348,10 @@ function PortfolioForm() {
       </form>
 
       {error && <p className="text-red-500 mt-4 text-sm">{error}</p>}
+
+      {assets.length > 0 && (
+        <PortfolioTable assets={assets} onDeleteAsset={handleDeleteAsset} />
+      )}
     </div>
   );
 }

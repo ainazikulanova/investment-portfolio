@@ -41,11 +41,13 @@ class AssetSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
-        ret.update({
-            'hide_label': False,
-            'placeholder': f'Введите {self.fields["ticker"].label.lower()}' if 'ticker' in self.fields else '',
-            'autofocus': False
-        })
+        for field_name in self.fields:
+            ret[field_name] = ret.get(field_name, None) or ''
+            ret.update({
+                'hide_label': False,
+                'placeholder': f'Введите {field_name.lower().replace("_", " ")}' if field_name in ['ticker', 'name'] else '',
+                'autofocus': False
+            })
         return ret
 
 class HistoricalPriceSerializer(serializers.ModelSerializer):

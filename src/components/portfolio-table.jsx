@@ -27,12 +27,16 @@ function PortfolioTable({ assets, onDeleteAsset }) {
                 %
               </td>
               <td className="p-3">
-                <button
-                  onClick={() => onDeleteAsset(asset.id)}
-                  className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition cursor-pointer"
-                >
-                  Удалить
-                </button>
+                {onDeleteAsset && typeof onDeleteAsset === "function" ? (
+                  <button
+                    onClick={() => onDeleteAsset(asset.id)}
+                    className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition cursor-pointer"
+                  >
+                    Удалить
+                  </button>
+                ) : (
+                  <span className="text-gray-500">Удаление недоступно</span>
+                )}
               </td>
             </tr>
           ))}

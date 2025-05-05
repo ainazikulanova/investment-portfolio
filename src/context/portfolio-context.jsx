@@ -1,6 +1,5 @@
 import React, { createContext, useState, useEffect } from "react";
 import axios from "axios";
-
 export const PortfolioContext = createContext();
 
 const BASE_URL = "https://investment-portfolio-z2zm.onrender.com";
@@ -30,6 +29,15 @@ export const PortfolioProvider = ({ children }) => {
     }
   };
 
+  const removeAsset = async (id) => {
+    try {
+      await axios.delete(`${BASE_URL}/api/assets/${id}/`);
+      setAssets((prevAssets) => prevAssets.filter((asset) => asset.id !== id));
+    } catch (error) {
+      throw new Error(error.response?.data?.error || "Failed to remove asset");
+    }
+  };
+
   const optimizePortfolio = async (
     tickers,
     model,
@@ -55,7 +63,13 @@ export const PortfolioProvider = ({ children }) => {
 
   return (
     <PortfolioContext.Provider
-      value={{ assets, addAsset, optimizedPortfolio, optimizePortfolio }}
+      value={{
+        assets,
+        addAsset,
+        optimizedPortfolio,
+        optimizePortfolio,
+        removeAsset,
+      }}
     >
       {children}
     </PortfolioContext.Provider>
